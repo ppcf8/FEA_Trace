@@ -240,7 +240,10 @@ class FEAProject:
         run = RunRecord(id=run_id, name=run_name, date=_now(), status=RunStatus.WIP,
                         created_by=created_by, comments=comments,
                         artifacts=ArtifactRecord(input=[SOLVER_EXTENSIONS[i.solver_type]]))
-        i.runs.append(run); self._write(); return run
+        i.runs.append(run); self._write()
+        run_folder = self._path / RUNS_FOLDER / f"Run_{run_id:02d}"
+        run_folder.mkdir(parents=True, exist_ok=True)
+        return run
 
     def update_run_status(self, version_id, iter_id, run_id,
                           new_status, comments="", output_artifacts=None, is_production=None):

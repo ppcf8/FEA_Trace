@@ -95,35 +95,54 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 ## GUI Frames & Dialogs
 
-- **RunFrame** — Displays run metadata, artifact list, status transitions.
-  `app/gui/frames/run_frame.py` _(initial)_
-
-- **IterationFrame** — Lists runs; add / open run actions.
-  `app/gui/frames/iteration_frame.py` _(initial)_
-
-- **RepresentationFrame** — Lists iterations; add iteration action.
-  `app/gui/frames/representation_frame.py` _(initial)_
-
-- **VersionFrame** — Shows version metadata and representations; status
-  transition controls.
-  `app/gui/frames/version_frame.py` _(initial)_
-
 - **EntityFrame** — Top-level entity info; lists versions; add version action.
   `app/gui/frames/entity_frame.py` _(initial)_
 
+- **VersionFrame** — Shows version metadata and status transition controls.
+  `app/gui/frames/version_frame.py` _(initial)_
+
+- **IterationFrame** — Shows iteration metadata, filename base, run summary table;
+  add / open run actions.
+  `app/gui/frames/iteration_frame.py` _(initial)_
+
+- **RunFrame** — Displays run metadata, artifact list, status transitions.
+  `app/gui/frames/run_frame.py` _(initial)_
+
 - **All creation dialogs** — NewEntityDialog, NewVersionDialog,
-  NewRepresentationDialog, NewIterationDialog, NewRunDialog — all pre-fill
-  "Created By" from `os.getlogin()` with OSError fallback.
+  NewIterationDialog, NewRunDialog — all pre-fill "Created By" from
+  `os.getlogin()` with OSError fallback.
   `app/gui/dialogs/` _(initial)_
+
+- **Run panel clipboard & folder actions** — Solver Deck row gains two PNG icon
+  buttons: copy filename to clipboard (`copy.png`) and copy full path to clipboard
+  (`copy_with_path.png`). An **Open Folder** button opens the `Run_##` subfolder in
+  Windows Explorer; shows a status-bar message if the folder does not exist yet.
+  `app/gui/frames/run_frame.py` _(2026-02-23)_
+
+- **Iteration panel copy icon** — Filename Base "Copy" text button replaced with
+  `copy.png` icon button for visual consistency with the Run panel.
+  `app/gui/frames/iteration_frame.py` _(2026-02-23)_
 
 ---
 
 ## Infrastructure
 
-- **App icon** — `fea_trace.ico` loaded via `iconbitmap()` in `MainWindow.__init__` (title bar);
-  `SetCurrentProcessExplicitAppUserModelID` called in `main.py` before window creation so
-  the taskbar also shows the app icon. No-op when compiled to `.exe`.
-  `main.py`, `app/gui/main_window.py`, `fea_trace.ico` _(2026-02-23)_
+- **App icon** — `assets/icons/fea_trace.ico` loaded via `iconbitmap()` with an absolute
+  path in `MainWindow.__init__` (title bar); `SetCurrentProcessExplicitAppUserModelID`
+  called in `main.py` before window creation so the taskbar also shows the app icon.
+  No-op when compiled to `.exe`.
+  `main.py`, `app/gui/main_window.py` _(2026-02-23)_
+
+- **assets/icons/ folder** — Static assets (`.ico`, `.png`) consolidated under
+  `app/assets/icons/`. All references use `Path(__file__)`-anchored absolute paths
+  so they resolve correctly regardless of working directory.
+  `app/assets/icons/`, `app/gui/main_window.py`, `app/gui/frames/run_frame.py`,
+  `app/gui/frames/iteration_frame.py` _(2026-02-23)_
+
+- **Run subfolder auto-creation** — `FEAProject.add_run()` calls
+  `mkdir(parents=True, exist_ok=True)` on `03_Runs/Run_##/` after writing the YAML,
+  so every new run immediately has a dedicated folder for solver input/output files.
+  `app/core/models.py` _(2026-02-23)_
 
 - **App version decoupled from schema version** — `APP_VERSION` in `app/config.py` set
   independently of `SCHEMA_VERSION`; bumped to `2.0.0`.
@@ -140,3 +159,16 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 - **ID generation** — Entity IDs strip vowels, truncate to 12 chars; version /
   rep / iter / run IDs are zero-padded auto-incremented numbers.
   `app/core/models.py` _(initial)_
+
+---
+
+## WIP
+
+<!-- Add features currently being worked on. Format: **Feature** — description. -->
+
+---
+
+## Not Implemented
+
+<!-- Add planned or desired features not yet started. Format: **Feature** — description. -->
+

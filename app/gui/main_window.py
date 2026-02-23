@@ -48,7 +48,7 @@ class MainWindow(ctk.CTk):
         # are honoured on Windows (the default 'vista' theme overrides them).
         ttk.Style(self).theme_use("clam")
         self.title(f"{APP_TITLE}  v{APP_VERSION}")
-        self.iconbitmap("fea_trace.ico")
+        self.iconbitmap((Path(__file__).parent.parent / "assets" / "icons" / "fea_trace.ico").as_posix())
         self.geometry(WINDOW_SIZE)
         self.minsize(WINDOW_MIN_W, WINDOW_MIN_H)
 

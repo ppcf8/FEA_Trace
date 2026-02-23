@@ -12,10 +12,15 @@ from __future__ import annotations
 import tkinter as tk
 import tkinter.ttk as ttk
 import customtkinter as ctk
+from pathlib import Path
 from typing import Optional
+from PIL import Image
 
 from app.core.models import FEAProject
 from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, SOLVER_COLORS
+
+_ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
+_IMG_COPY  = ctk.CTkImage(Image.open(_ICONS_DIR / "copy.png"), size=(18, 18))
 
 
 # ---------------------------------------------------------------------------
@@ -113,9 +118,8 @@ class IterationFrame(ctk.CTkFrame):
 
         ctk.CTkButton(
             base_frame,
-            text="Copy",
-            width=60, height=28,
-            font=ctk.CTkFont(size=12),
+            text="", image=_IMG_COPY,
+            width=32, height=28,
             command=self._copy_base,
         ).pack(side="left")
 

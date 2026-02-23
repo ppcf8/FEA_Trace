@@ -3,12 +3,20 @@ frames/run_frame.py — Run Detail View
 """
 from __future__ import annotations
 
+import os
 import tkinter.ttk as ttk
 import customtkinter as ctk
+from pathlib import Path
 from typing import Optional
+from PIL import Image
 
 from schema import RunStatus, RUN_STATUS_TRANSITIONS
 from app.core.models import FEAProject
+from app.config import RUNS_FOLDER
+
+_ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
+_IMG_COPY      = ctk.CTkImage(Image.open(_ICONS_DIR / "copy.png"),           size=(18, 18))
+_IMG_COPY_PATH = ctk.CTkImage(Image.open(_ICONS_DIR / "copy_with_path.png"), size=(18, 18))
 
 
 _STATUS_BADGE = {
@@ -96,10 +104,23 @@ class RunFrame(ctk.CTkFrame):
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
-            fname_row, text="Copy Filename",
-            width=140, height=32,
-            font=ctk.CTkFont(size=12),
+            fname_row, text="", image=_IMG_COPY,
+            width=32, height=32,
             command=self._copy_filename,
+        ).pack(side="left", padx=(0, 6))
+
+        self._run_folder_var = ctk.StringVar(value="—")
+        ctk.CTkButton(
+            fname_row, text="", image=_IMG_COPY_PATH,
+            width=32, height=32,
+            command=self._copy_folder_path,
+        ).pack(side="left", padx=(0, 6))
+
+        ctk.CTkButton(
+            fname_row, text="Open Folder",
+            width=100, height=32,
+            font=ctk.CTkFont(size=12),
+            command=self._open_run_folder,
         ).pack(side="left")
 
     def _build_metadata_panel(self) -> None:
@@ -276,6 +297,8 @@ class RunFrame(ctk.CTkFrame):
         )
 
         self._filename_var.set(run.name)
+        run_folder = project.path / RUNS_FOLDER / f"Run_{run_id:02d}"
+        self._run_folder_var.set(str(run_folder))
         self._meta["_date"].configure(text=run.date)
         self._meta["_created_by"].configure(text=run.created_by)
 
@@ -339,6 +362,23 @@ class RunFrame(ctk.CTkFrame):
             self.clipboard_clear()
             self.clipboard_append(val)
             self._window.set_status(f"Copied to clipboard: {val}")
+
+    def _copy_folder_path(self) -> None:
+        folder   = self._run_folder_var.get()
+        filename = self._filename_var.get()
+        if folder and folder != "—" and filename and filename != "—":
+            full_path = str(Path(folder) / filename)
+            self.clipboard_clear()
+            self.clipboard_append(full_path)
+            self._window.set_status(f"Copied to clipboard: {full_path}")
+
+    def _open_run_folder(self) -> None:
+        path = self._run_folder_var.get()
+        if path and path != "—":
+            if os.path.isdir(path):
+                os.startfile(path)
+            else:
+                self._window.set_status(f"Folder not found: {path}")
 
     def _on_save_comments(self) -> None:
         if not self._project or self._run_id is None:
