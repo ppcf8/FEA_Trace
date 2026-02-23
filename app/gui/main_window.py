@@ -67,14 +67,12 @@ class MainWindow(ctk.CTk):
 
     def _build_layout(self) -> None:
         self.rowconfigure(0, weight=0)   # menu bar
-        self.rowconfigure(1, weight=0)   # toolbar
-        self.rowconfigure(2, weight=1)   # content
-        self.rowconfigure(3, weight=0)   # status bar
+        self.rowconfigure(1, weight=1)   # content
+        self.rowconfigure(2, weight=0)   # status bar
         self.columnconfigure(0, weight=0)
         self.columnconfigure(1, weight=1)
 
         self._build_menubar()
-        self._build_toolbar()
         self._build_sidebar()
         self._build_main_panel()
         self._build_status_bar()
@@ -102,35 +100,18 @@ class MainWindow(ctk.CTk):
         appearance_sub.add_option("Light",     command=lambda: ctk.set_appearance_mode("light"))
         appearance_sub.add_option("Dark",      command=lambda: ctk.set_appearance_mode("dark"))
 
-    def _build_toolbar(self) -> None:
-        bar = ctk.CTkFrame(self, height=48, corner_radius=0)
-        bar.grid(row=1, column=0, columnspan=2, sticky="ew")
-        bar.columnconfigure(1, weight=1)
-
-        ctk.CTkLabel(
-            bar, text=APP_TITLE,
-            font=ctk.CTkFont(size=16, weight="bold"),
-        ).grid(row=0, column=0, padx=16, pady=10, sticky="w")
-
-        # Session name label (centre)
-        self._session_label = ctk.CTkLabel(
-            bar, text="",
-            font=ctk.CTkFont(size=12),
-        )
-        self._session_label.grid(row=0, column=1, sticky="")
-
     def _build_sidebar(self) -> None:
         self._sidebar = Sidebar(
             self,
             on_select=self._on_sidebar_select,
             on_close=self._on_close_entity,
         )
-        self._sidebar.grid(row=2, column=0, sticky="nsew")
+        self._sidebar.grid(row=1, column=0, sticky="nsew")
 
     def _build_main_panel(self) -> None:
         self._main_panel = ctk.CTkFrame(
             self, corner_radius=0, fg_color="transparent")
-        self._main_panel.grid(row=2, column=1, sticky="nsew")
+        self._main_panel.grid(row=1, column=1, sticky="nsew")
         self._main_panel.rowconfigure(0, weight=1)
         self._main_panel.columnconfigure(0, weight=1)
 
@@ -146,8 +127,10 @@ class MainWindow(ctk.CTk):
 
     def _build_status_bar(self) -> None:
         bar = ctk.CTkFrame(self, height=28, corner_radius=0)
-        bar.grid(row=3, column=0, columnspan=2, sticky="ew")
+        bar.grid(row=2, column=0, columnspan=2, sticky="ew")
         bar.columnconfigure(0, weight=1)
+        bar.columnconfigure(1, weight=1)
+        bar.columnconfigure(2, weight=1)
 
         self._status_var = ctk.StringVar(value="Ready")
         ctk.CTkLabel(
@@ -155,10 +138,17 @@ class MainWindow(ctk.CTk):
             font=ctk.CTkFont(size=12), anchor="w",
         ).grid(row=0, column=0, padx=12, pady=2, sticky="w")
 
+        # Session filename — centred
+        self._session_label = ctk.CTkLabel(
+            bar, text="",
+            font=ctk.CTkFont(size=11),
+        )
+        self._session_label.grid(row=0, column=1, pady=2, sticky="")
+
         ctk.CTkLabel(
             bar, text=f"Schema {SCHEMA_VERSION}",
             font=ctk.CTkFont(size=11), anchor="e",
-        ).grid(row=0, column=1, padx=12, pady=2, sticky="e")
+        ).grid(row=0, column=2, padx=12, pady=2, sticky="e")
 
     # ------------------------------------------------------------------
     # Frame switching
