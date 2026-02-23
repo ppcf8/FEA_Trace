@@ -1,7 +1,7 @@
 from schema import SolverType, SCHEMA_VERSION
 
 APP_TITLE:    str = "FEA Trace"
-APP_VERSION:  str = SCHEMA_VERSION
+APP_VERSION:  str = "2.0.0"
 WINDOW_SIZE:  str = "1280x800"
 WINDOW_MIN_W: int = 900
 WINDOW_MIN_H: int = 600
