@@ -1,0 +1,23 @@
+from schema import SolverType, SCHEMA_VERSION
+
+APP_TITLE:    str = "FEA Trace"
+APP_VERSION:  str = SCHEMA_VERSION
+WINDOW_SIZE:  str = "1280x800"
+WINDOW_MIN_W: int = 900
+WINDOW_MIN_H: int = 600
+
+LOCK_TIMEOUT_SECONDS: int = 30
+LOCK_FILENAME:        str = "version_log.yaml.lock"
+LOG_FILENAME:         str = "version_log.yaml"
+
+REQUIRED_PRODUCTION_ARTIFACTS: dict[SolverType, list[str]] = {
+    SolverType.IMPLICIT: [".fem", ".h3d"],
+    SolverType.EXPLICIT: [".rad", ".h3d"],
+    SolverType.MBD:      [".xml", ".h3d"],
+}
+
+RUNS_FOLDER:    str = "03_Runs"
+RESULTS_FOLDER: str = "04_Results"
+TIMESTAMP_FORMAT: str = "%Y-%m-%d %H:%M:%S"
+SIDEBAR_WIDTH:  int = 240
+ENTITY_ID_MAX_LEN: int = 12
