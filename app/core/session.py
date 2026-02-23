@@ -10,6 +10,7 @@ class SessionManager:
     def __init__(self):
         self._path:     Optional[Path] = None
         self._entities: list[str]      = []
+        self._dirty:    bool           = False
 
     @property
     def path(self): return self._path
@@ -19,6 +20,8 @@ class SessionManager:
     def has_file(self): return self._path is not None
     @property
     def display_name(self): return self._path.name if self._path else "Unsaved Session"
+    @property
+    def is_dirty(self) -> bool: return self._dirty
 
     def load(self, path) -> list[str]:
         path = Path(path)
@@ -31,18 +34,21 @@ class SessionManager:
         valid = [e for e in raw.get("entities", []) if Path(e).is_dir()]
         self._path     = path
         self._entities = valid
+        self._dirty    = False
         return valid
 
     def save(self):
         if self._path is None:
             raise RuntimeError("No session file path set.")
         self._write(self._path)
+        self._dirty = False
 
     def save_as(self, path):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         self._write(path)
-        self._path = path
+        self._path  = path
+        self._dirty = False
 
     def _write(self, path):
         path.write_text(
@@ -50,13 +56,19 @@ class SessionManager:
                        indent=2, ensure_ascii=False),
             encoding="utf-8")
 
-    def set_entities(self, paths): self._entities = list(paths)
+    def set_entities(self, paths):
+        self._entities = list(paths)
+        self._dirty    = True
     def add_entity(self, path):
         p = str(Path(path))
-        if p not in self._entities: self._entities.append(p)
+        if p not in self._entities:
+            self._entities.append(p)
+            self._dirty = True
     def remove_entity(self, path):
         p = str(Path(path))
         self._entities = [e for e in self._entities if e != p]
+        self._dirty    = True
     def clear(self):
         self._entities = []
         self._path     = None
+        self._dirty    = False

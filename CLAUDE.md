@@ -71,7 +71,9 @@ ProjectCode · EntityName          ← right-click → "Close Entity"
 
 All content frames are created once at startup, stacked with `.grid(row=0, col=0, sticky="nsew")`, and switched by calling `frame.load(project, ...)` then `.tkraise()`. Sidebar selection routes through `MainWindow._on_sidebar_select` → `show_entity / show_version / show_representation / show_iteration / show_run`.
 
-**File menu** is a custom `CTkFrame` dropdown placed via `.place()` below the toolbar button; dismissed via a `<ButtonRelease-1>` binding on the root window.
+**WelcomeFrame** shows three quick-access buttons: **New Entity**, **Open Entity**, **Open Session** (the last delegates to `MainWindow._on_open_session`).
+
+**File menu** uses `CTkMenuBar` + `CustomDropdownMenu` from the `CTkMenuBar` package (see `requirements.txt`). Menus: File (New Entity, Open Entity, New Session, Open Session, Save Session, Save Session As…) and Settings > Appearance (System / Light / Dark).
 
 **Dialogs** are `CTkToplevel` windows with `grab_set()`. All pre-fill "Created By" using `os.getlogin()` with `try/except OSError` fallback to `os.environ.get("USERNAME", "")`.
 
@@ -80,8 +82,9 @@ All content frames are created once at startup, stacked with `.grid(row=0, col=0
 ### Key Implementation Details
 
 - **File locking**: writes use `version_log.yaml.lock`; stale locks (>30 s) are auto-overridden.
-- **Session persistence**: open entity paths saved to `~/Documents/FEA_Trace/session.json`.
+- **Session persistence**: sessions saved as `.featrace` files (JSON under the hood); default directory is `~/Documents/FEA_Trace/`. `SessionManager` (`app/core/session.py`) tracks `is_dirty` — set on any entity add/remove/set, cleared on load/save/save_as.
 - **`StatusDot` canvas widget** (`theme.py`) — used instead of emoji for Windows compatibility.
 - **`FEAProject`** (`core/models.py`) owns YAML I/O, CRUD, and transition validation. GUI frames call `FEAProject` methods; they do not touch YAML directly.
 - **ID generation**: entity IDs strip vowels and truncate to 12 chars; version/rep/iter/run IDs are auto-incremented zero-padded numbers.
 - **Production artifact validation**: `config.REQUIRED_PRODUCTION_ARTIFACTS` maps each solver type to mandatory file extensions that must be present before marking a run as production.
+- **Save-on-close prompt**: `MainWindow` registers `WM_DELETE_WINDOW → _on_closing`. If entities are open and the session is dirty or has no file, a Yes/No/Cancel dialog is shown before closing. Cancel aborts; Yes triggers save/save-as (and aborts close if the save-as dialog is then dismissed).

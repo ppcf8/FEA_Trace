@@ -89,12 +89,23 @@ class WelcomeFrame(ctk.CTkFrame):
             command=self._window._on_open_entity,
         ).pack(side="left", padx=12)
 
+        ctk.CTkButton(
+            btn_frame,
+            text="Open Session",
+            width=160,
+            height=44,
+            font=ctk.CTkFont(size=14),
+            fg_color="transparent",
+            border_width=2,
+            command=self._window._on_open_session,
+        ).pack(side="left", padx=12)
+
         # Hint text
         ctk.CTkLabel(
             content,
             text=(
                 "Create a new entity to start tracking a component or assembly,\n"
-                "or open an existing entity folder to continue work."
+                "or open an existing entity folder or session to continue work."
             ),
             font=ctk.CTkFont(size=13),
             justify="center",

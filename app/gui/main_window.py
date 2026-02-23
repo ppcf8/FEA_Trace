@@ -60,6 +60,7 @@ class MainWindow(ctk.CTk):
 
         self._build_layout()
         self._show_frame("welcome")
+        self.protocol("WM_DELETE_WINDOW", self._on_closing)
 
     # ------------------------------------------------------------------
     # Layout
@@ -431,6 +432,22 @@ class MainWindow(ctk.CTk):
     # ------------------------------------------------------------------
     # Error dialog
     # ------------------------------------------------------------------
+
+    def _on_closing(self) -> None:
+        if self._projects and (self._session.is_dirty or not self._session.has_file):
+            from tkinter import messagebox
+            resp = messagebox.askyesnocancel(
+                "Save Session",
+                "Save the current session before closing?",
+                parent=self,
+            )
+            if resp is None:      # Cancel — abort close
+                return
+            if resp:              # Yes — save
+                self._on_save_session()
+                if self._session.is_dirty:   # save-as dialog was cancelled
+                    return
+        self.destroy()
 
     def _show_error(self, title: str, message: str) -> None:
         from tkinter import messagebox
