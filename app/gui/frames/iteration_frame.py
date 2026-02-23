@@ -2,9 +2,9 @@
 iteration_frame.py — Iteration Detail View
 ===========================================
 Displayed when an Iteration node is selected in the sidebar.
-Shows iteration metadata, design changes list, the auto-generated
-filename base, and the run summary table.
-Provides the entry point for registering a new Run.
+Shows iteration metadata (including solver type and analysis types),
+design changes list, the auto-generated filename base, and the run
+summary table. Provides the entry point for registering a new Run.
 """
 
 from __future__ import annotations
@@ -12,10 +12,15 @@ from __future__ import annotations
 import tkinter as tk
 import tkinter.ttk as ttk
 import customtkinter as ctk
+from pathlib import Path
 from typing import Optional
+from PIL import Image
 
 from app.core.models import FEAProject
-from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS
+from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, SOLVER_COLORS
+
+_ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
+_IMG_COPY  = ctk.CTkImage(Image.open(_ICONS_DIR / "copy.png"), size=(18, 18))
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +55,6 @@ class IterationFrame(ctk.CTkFrame):
         self._window      = window
         self._project:    Optional[FEAProject] = None
         self._version_id: Optional[str]        = None
-        self._rep_id:     Optional[str]        = None
         self._iter_id:    Optional[str]        = None
         self._build()
 
@@ -72,12 +76,23 @@ class IterationFrame(ctk.CTkFrame):
         hdr.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 0))
         hdr.columnconfigure(0, weight=1)
 
+        title_row = ctk.CTkFrame(hdr, fg_color="transparent")
+        title_row.grid(row=0, column=0, sticky="ew")
+        title_row.columnconfigure(0, weight=1)
+
         self._title_label = ctk.CTkLabel(
-            hdr, text="Iteration",
+            title_row, text="Iteration",
             font=ctk.CTkFont(size=22, weight="bold"),
             anchor="w",
         )
         self._title_label.grid(row=0, column=0, sticky="w")
+
+        self._solver_label = ctk.CTkLabel(
+            title_row, text="",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            corner_radius=6, anchor="center", padx=12, pady=4,
+        )
+        self._solver_label.grid(row=0, column=1, sticky="e")
 
         # Filename base pill — read-only, copy button alongside
         base_frame = ctk.CTkFrame(hdr, fg_color="transparent")
@@ -96,16 +111,15 @@ class IterationFrame(ctk.CTkFrame):
             base_frame,
             textvariable=self._base_var,
             state="readonly",
-            width=420,
+            width=400,
             font=ctk.CTkFont(size=12, family="Courier New"),
         )
         base_entry.pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
             base_frame,
-            text="Copy",
-            width=60, height=28,
-            font=ctk.CTkFont(size=12),
+            text="", image=_IMG_COPY,
+            width=32, height=28,
             command=self._copy_base,
         ).pack(side="left")
 
@@ -124,24 +138,37 @@ class IterationFrame(ctk.CTkFrame):
         self._desc_label = ctk.CTkLabel(
             panel, text="",
             font=ctk.CTkFont(size=12),
-            anchor="nw", justify="left", wraplength=560,
+            anchor="nw", justify="left", wraplength=540,
         )
         self._desc_label.grid(row=0, column=1, columnspan=3,
                               padx=(0, 16), pady=(12, 6), sticky="w")
+
+        # Analysis Types
+        ctk.CTkLabel(
+            panel, text="Analysis Types",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            anchor="w", width=110,
+        ).grid(row=1, column=0, padx=(16, 4), pady=(0, 6), sticky="w")
+
+        self._analysis_label = ctk.CTkLabel(
+            panel, text="", font=ctk.CTkFont(size=12), anchor="w",
+        )
+        self._analysis_label.grid(row=1, column=1, columnspan=3,
+                                  padx=(0, 16), pady=(0, 6), sticky="w")
 
         # Design changes
         ctk.CTkLabel(
             panel, text="Design Changes",
             font=ctk.CTkFont(size=12, weight="bold"),
             anchor="nw", width=110,
-        ).grid(row=1, column=0, padx=(16, 4), pady=(0, 6), sticky="nw")
+        ).grid(row=2, column=0, padx=(16, 4), pady=(0, 6), sticky="nw")
 
         self._changes_label = ctk.CTkLabel(
             panel, text="—",
             font=ctk.CTkFont(size=12),
-            anchor="nw", justify="left", wraplength=560,
+            anchor="nw", justify="left", wraplength=540,
         )
-        self._changes_label.grid(row=1, column=1, columnspan=3,
+        self._changes_label.grid(row=2, column=1, columnspan=3,
                                  padx=(0, 16), pady=(0, 6), sticky="w")
 
         # Created by / on
@@ -152,13 +179,13 @@ class IterationFrame(ctk.CTkFrame):
                 panel, text=label,
                 font=ctk.CTkFont(size=12, weight="bold"),
                 anchor="w", width=110,
-            ).grid(row=2, column=col_i * 2,
+            ).grid(row=3, column=col_i * 2,
                    padx=(16, 4), pady=(0, 12), sticky="w")
             val = ctk.CTkLabel(
                 panel, text="—",
                 font=ctk.CTkFont(size=12), anchor="w",
             )
-            val.grid(row=2, column=col_i * 2 + 1,
+            val.grid(row=3, column=col_i * 2 + 1,
                      padx=(0, 24), pady=(0, 12), sticky="w")
             self._meta[key] = val
 
@@ -232,24 +259,31 @@ class IterationFrame(ctk.CTkFrame):
         self,
         project:    FEAProject,
         version_id: str,
-        rep_id:     str,
         iter_id:    str,
     ) -> None:
         self._project    = project
         self._version_id = version_id
-        self._rep_id     = rep_id
         self._iter_id    = iter_id
 
         apply_table_style("Iter.Treeview")
 
         v = project._get_version(version_id)
-        r = project._get_representation(v, rep_id)
-        i = project._get_iteration(r, iter_id)
+        i = project._get_iteration(v, iter_id)
 
         self._title_label.configure(
-            text=f"Iteration  {version_id} / {rep_id} / {i.id}")
+            text=f"Iteration  {version_id} / {i.id}")
+
+        solver_val = i.solver_type.value
+        color      = SOLVER_COLORS.get(solver_val, "#444444")
+        self._solver_label.configure(
+            text=f"  {solver_val}  ",
+            fg_color=color, text_color="#FFFFFF",
+        )
+
         self._base_var.set(i.filename_base)
         self._desc_label.configure(text=i.description.strip())
+        self._analysis_label.configure(
+            text="  ·  ".join(i.analysis_types) if i.analysis_types else "—")
 
         if i.design_changes:
             self._changes_label.configure(
@@ -294,7 +328,6 @@ class IterationFrame(ctk.CTkFrame):
             self._window.show_run(
                 str(self._project.path),
                 self._version_id,
-                self._rep_id,
                 self._iter_id,
                 int(sel[0]),
             )
@@ -307,8 +340,7 @@ class IterationFrame(ctk.CTkFrame):
             self._window.set_status("Filename base copied to clipboard.")
 
     def _on_new_run(self) -> None:
-        if not all([self._project, self._version_id,
-                    self._rep_id, self._iter_id]):
+        if not all([self._project, self._version_id, self._iter_id]):
             return
         from app.gui.dialogs.new_run_dialog import NewRunDialog
         dlg = NewRunDialog(self._window)
@@ -319,7 +351,7 @@ class IterationFrame(ctk.CTkFrame):
         created_by, comments = dlg.result
         try:
             run = self._project.add_run(
-                self._version_id, self._rep_id, self._iter_id,
+                self._version_id, self._iter_id,
                 created_by, comments,
             )
         except Exception as exc:
@@ -327,8 +359,7 @@ class IterationFrame(ctk.CTkFrame):
             return
 
         v = self._project._get_version(self._version_id)
-        r = self._project._get_representation(v, self._rep_id)
-        i = self._project._get_iteration(r, self._iter_id)
+        i = self._project._get_iteration(v, self._iter_id)
         self._populate_table(i)
         self._window.refresh_sidebar()
         self._window.set_status(

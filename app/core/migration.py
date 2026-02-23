@@ -79,3 +79,38 @@ def migrate(raw, tool_version, migrated_by, confirmed=False):
 
 def needs_migration(raw, tool_version):
     return check(raw, tool_version) in ("auto", "confirm")
+
+
+# ---------------------------------------------------------------------------
+# Migration: 1.0.0 → 2.0.0
+# Flatten Representation → Iteration: solver_type and analysis_types moved
+# to Iteration; Representation level removed.
+# ---------------------------------------------------------------------------
+
+def _migrate_1_0_0(raw: dict, migrated_by: str) -> dict:
+    for ver in raw.get("versions", []):
+        flat_iters = []
+        new_id = 1
+        for rep in ver.get("representations", []):
+            solver_type    = rep.get("solver_type", "IMPLICIT")
+            analysis_types = rep.get("analysis_types", [])
+            for itr in rep.get("iterations", []):
+                itr["solver_type"]    = solver_type
+                itr["analysis_types"] = analysis_types
+                itr["id"]             = f"I{new_id:02d}"
+                # filename_base kept unchanged — files on disk must not be renamed
+                flat_iters.append(itr)
+                new_id += 1
+        ver["iterations"] = flat_iters
+        if "representations" in ver:
+            del ver["representations"]
+    raw["schema_version"] = "2.0.0"
+    return raw
+
+
+MIGRATIONS["1.0.0"] = (
+    _migrate_1_0_0,
+    "Flatten Representation→Iteration: solver_type and analysis_types moved to Iteration; "
+    "Representation level removed.",
+    True,
+)

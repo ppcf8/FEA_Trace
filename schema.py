@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Optional
 import re
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "2.0.0"
 
 class SolverType(str, Enum):
     IMPLICIT = "IMPLICIT"
@@ -73,10 +73,6 @@ def next_version_id(existing: list[str]) -> str:
     nums = [int(v[1:]) for v in existing if re.fullmatch(r"V\d{2,}", v)]
     return f"V{(max(nums, default=0) + 1):02d}"
 
-def next_representation_id(existing: list[str]) -> str:
-    nums = [int(r[1:]) for r in existing if re.fullmatch(r"R\d{2,}", r)]
-    return f"R{(max(nums, default=0) + 1):02d}"
-
 def next_iteration_id(existing: list[str]) -> str:
     nums = [int(i[1:]) for i in existing if re.fullmatch(r"I\d{2,}", i)]
     return f"I{(max(nums, default=0) + 1):02d}"
@@ -84,8 +80,8 @@ def next_iteration_id(existing: list[str]) -> str:
 def next_run_id(existing: list[int]) -> int:
     return max(existing, default=0) + 1
 
-def build_filename_base(project, entity_id, version_id, rep_id, iter_id, solver_type) -> str:
-    return f"{project}_{entity_id}_{version_id}{rep_id}{iter_id}_{solver_type.value}"
+def build_filename_base(project, entity_id, version_id, iter_id, solver_type) -> str:
+    return f"{project}_{entity_id}_{version_id}{iter_id}_{solver_type.value}"
 
 def build_run_filename(filename_base: str, run_id: int, solver_type: SolverType) -> str:
     return f"{filename_base}_{run_id:02d}{SOLVER_EXTENSIONS[solver_type]}"
@@ -114,30 +110,22 @@ class IterationRecord:
     filename_base:  str
     created_by:     str
     created_on:     str
+    solver_type:    SolverType = SolverType.IMPLICIT
+    analysis_types: list[str] = field(default_factory=list)
     design_changes: list[str] = field(default_factory=list)
     runs:           list[RunRecord] = field(default_factory=list)
-    MANDATORY = {"id", "description", "filename_base", "created_by", "created_on"}
-
-@dataclass
-class RepresentationRecord:
-    id:             str
-    solver_type:    SolverType
-    analysis_types: list[str]
-    description:    str
-    created_by:     str
-    created_on:     str
-    iterations:     list[IterationRecord] = field(default_factory=list)
-    MANDATORY = {"id", "solver_type", "analysis_types", "description", "created_by", "created_on"}
+    MANDATORY = {"id", "description", "filename_base", "created_by", "created_on",
+                 "solver_type", "analysis_types"}
 
 @dataclass
 class VersionRecord:
-    id:              str
-    status:          VersionStatus
-    intent:          str
-    created_by:      str
-    created_on:      str
-    representations: list[RepresentationRecord] = field(default_factory=list)
-    notes:           list[str] = field(default_factory=list)
+    id:         str
+    status:     VersionStatus
+    intent:     str
+    created_by: str
+    created_on: str
+    iterations: list[IterationRecord] = field(default_factory=list)
+    notes:      list[str] = field(default_factory=list)
     MANDATORY = {"id", "status", "intent", "created_by", "created_on"}
 
 @dataclass
@@ -180,11 +168,11 @@ def validate_mandatory_fields(record: object) -> list[str]:
             missing.append(f_name)
     return missing
 
-def validate_filename(filename, entity, version_id, rep, iter_id, run_id):
+def validate_filename(filename, entity, version_id, iteration, run_id):
     expected = build_run_filename(
         build_filename_base(entity.project, entity.id, version_id,
-                            rep.id, iter_id, rep.solver_type),
-        run_id, rep.solver_type,
+                            iteration.id, iteration.solver_type),
+        run_id, iteration.solver_type,
     )
     if filename != expected:
         return False, f"Expected '{expected}', got '{filename}'."
