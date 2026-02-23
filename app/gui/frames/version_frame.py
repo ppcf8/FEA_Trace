@@ -29,7 +29,7 @@ _COL_WEIGHTS = {
     "solver_type":    2,
     "analysis_types": 3,
     "description":    7,
-    "iterations":     1,
+    "runs":           1,
     "created_by":     3,
     "created_on":     3,
 }  # total = 20 units
@@ -55,7 +55,7 @@ class VersionFrame(ctk.CTkFrame):
         self._build_header()
         self._build_metadata_panel()
         self._build_notes_panel()
-        self._build_rep_table()
+        self._build_iter_table()
         self._build_action_bar()
 
     def _build_header(self) -> None:
@@ -128,19 +128,19 @@ class VersionFrame(ctk.CTkFrame):
         )
         self._notes_label.grid(row=0, column=1, sticky="w")
 
-    def _build_rep_table(self) -> None:
+    def _build_iter_table(self) -> None:
         section = ctk.CTkFrame(self, fg_color="transparent")
         section.grid(row=3, column=0, sticky="nsew", padx=24, pady=(0, 8))
         section.columnconfigure(0, weight=1)
         section.rowconfigure(1, weight=1)
 
         ctk.CTkLabel(
-            section, text="Representations",
+            section, text="Iterations",
             font=ctk.CTkFont(size=15, weight="bold"), anchor="w",
         ).grid(row=0, column=0, sticky="w", pady=(0, 8))
 
         cols = ("id", "solver_type", "analysis_types",
-                "description", "iterations", "created_by", "created_on")
+                "description", "runs", "created_by", "created_on")
         self._table = ttk.Treeview(
             section, columns=cols, show="headings",
             selectmode="browse", height=7,
@@ -152,7 +152,7 @@ class VersionFrame(ctk.CTkFrame):
             "solver_type":    ("Solver",      "w"),
             "analysis_types": ("Analysis",    "w"),
             "description":    ("Description", "w"),
-            "iterations":     ("Iters",       "center"),
+            "runs":           ("Runs",        "center"),
             "created_by":     ("Created By",  "w"),
             "created_on":     ("Created On",  "w"),
         }
@@ -169,7 +169,7 @@ class VersionFrame(ctk.CTkFrame):
         hsb.grid(row=2, column=0, sticky="ew")
 
         self._section = section
-        self._table.bind("<<TreeviewSelect>>", self._on_rep_select)
+        self._table.bind("<<TreeviewSelect>>", self._on_iter_select)
         section.bind("<Configure>", self._resize_columns)
         apply_table_style("Version.Treeview")
         ctk.AppearanceModeTracker.add(self._on_appearance_change)
@@ -179,10 +179,10 @@ class VersionFrame(ctk.CTkFrame):
         bar.grid(row=4, column=0, sticky="ew", padx=24, pady=(4, 20))
 
         ctk.CTkButton(
-            bar, text="+ New Representation",
-            width=180, height=36,
+            bar, text="+ New Iteration",
+            width=160, height=36,
             font=ctk.CTkFont(size=13),
-            command=self._on_new_representation,
+            command=self._on_new_iteration,
         ).pack(side="left")
 
     # ------------------------------------------------------------------
@@ -248,40 +248,38 @@ class VersionFrame(ctk.CTkFrame):
         for row in self._table.get_children():
             self._table.delete(row)
 
-        for r in v.representations:
-            types  = ", ".join(r.analysis_types)
-            desc   = r.description.strip().replace("\n", " ")
+        for i in v.iterations:
+            types  = ", ".join(i.analysis_types)
+            desc   = i.description.strip().replace("\n", " ")
             if len(desc) > 55:
                 desc = desc[:52] + "…"
-            solver = _SOLVER_BADGE.get(r.solver_type.value, r.solver_type.value)
-            self._table.insert("", "end", iid=r.id, values=(
-                r.id, solver, types, desc,
-                len(r.iterations), r.created_by, r.created_on,
+            solver = _SOLVER_BADGE.get(i.solver_type.value, i.solver_type.value)
+            self._table.insert("", "end", iid=i.id, values=(
+                i.id, solver, types, desc,
+                len(i.runs), i.created_by, i.created_on,
             ))
 
     # ------------------------------------------------------------------
     # Events
     # ------------------------------------------------------------------
 
-    def _on_rep_select(self, _event) -> None:
+    def _on_iter_select(self, _event) -> None:
         sel = self._table.selection()
         if sel and self._project and self._version_id:
-            # FIX Bug 3: pass entity_path as first argument
-            self._window.show_representation(
+            self._window.show_iteration(
                 str(self._project.path), self._version_id, sel[0])
 
     def _on_status_change(self, target: VersionStatus) -> None:
         if not self._project or not self._version_id:
             return
 
-        # FIX Bug 5: open RevertReasonDialog when reverting to WIP
         revert_reason = None
         if target == VersionStatus.WIP:
             from app.gui.dialogs.revert_reason_dialog import RevertReasonDialog
             dlg = RevertReasonDialog(self._window, self._version_id)
             self._window.wait_window(dlg)
             if dlg.result is None:
-                return   # User cancelled — abort the transition
+                return
             revert_reason = dlg.result
 
         try:
@@ -295,29 +293,29 @@ class VersionFrame(ctk.CTkFrame):
         self._window.set_status(f"Version {self._version_id} → {target.value}")
         self.load(self._project, self._version_id)
 
-    def _on_new_representation(self) -> None:
+    def _on_new_iteration(self) -> None:
         if not self._project or not self._version_id:
             return
-        from app.gui.dialogs.new_representation_dialog import NewRepresentationDialog
-        dlg = NewRepresentationDialog(self._window)
+        from app.gui.dialogs.new_iteration_dialog import NewIterationDialog
+        dlg = NewIterationDialog(self._window)
         self._window.wait_window(dlg)
         if dlg.result is None:
             return
 
-        solver_type, analysis_types, description, created_by = dlg.result
+        solver_type, analysis_types, description, design_changes, created_by = dlg.result
         try:
-            self._project.add_representation(
+            self._project.add_iteration(
                 self._version_id, solver_type,
-                analysis_types, description, created_by,
+                analysis_types, description, created_by, design_changes,
             )
         except Exception as exc:
-            self._show_error("Create Representation Failed", str(exc))
+            self._show_error("Create Iteration Failed", str(exc))
             return
 
         v = self._project._get_version(self._version_id)
         self._populate_table(v)
         self._window.refresh_sidebar()
-        self._window.set_status("Representation created successfully.")
+        self._window.set_status("Iteration created successfully.")
 
     # ------------------------------------------------------------------
     # Styling

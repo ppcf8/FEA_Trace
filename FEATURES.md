@@ -33,9 +33,21 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 ## Navigation & Layout
 
-- **Sidebar navigation tree** — Hierarchical tree: entity → version → representation
-  → iteration → run. Right-click on entity node → "Close Entity". Tag-based colour
-  coding for WIP / PRODUCTION / DEPRECATED / run statuses.
+- **Representation/Iteration merge (schema 2.0.0)** — Flattened hierarchy from
+  `Version → Representation → Iteration → Run` to `Version → Iteration → Run`.
+  `solver_type` and `analysis_types` absorbed into `IterationRecord`. Auto-migration
+  `1.0.0 → 2.0.0` flattens existing YAML files in memory and rewrites them. Filename
+  bases on disk are preserved unchanged. New filename format drops the `R##` segment:
+  `{project}_{entity_id}_{version_id}{iter_id}_{solver_type}`.
+  `schema.py`, `app/core/models.py`, `app/core/migration.py`,
+  `app/gui/main_window.py`, `app/gui/sidebar.py`,
+  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
+  `app/gui/frames/run_frame.py`, `app/gui/dialogs/new_iteration_dialog.py`,
+  `app/gui/frames/entity_frame.py` _(2026-02-23)_
+
+- **Sidebar navigation tree** — Hierarchical tree: entity → version → iteration → run.
+  Right-click on entity node → "Close Entity". Tag-based colour coding for
+  WIP / PRODUCTION / DEPRECATED / run statuses.
   `app/gui/sidebar.py` _(initial)_
 
 - **Frame switching** — All content frames created once at startup and stacked via

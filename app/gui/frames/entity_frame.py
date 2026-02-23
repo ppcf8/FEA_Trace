@@ -23,12 +23,12 @@ _VERSION_STATUS_TEXT = {
 }
 
 _COL_WEIGHTS = {
-    "id":              1,
-    "status":          3,
-    "intent":          8,
-    "representations": 1,
-    "created_by":      3,
-    "created_on":      3,
+    "id":         1,
+    "status":     3,
+    "intent":     8,
+    "iterations": 1,
+    "created_by": 3,
+    "created_on": 3,
 }  # total = 19 units
 
 
@@ -140,7 +140,7 @@ class EntityFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=15, weight="bold"), anchor="w",
         ).grid(row=0, column=0, sticky="w", pady=(0, 8))
 
-        cols = ("id", "status", "intent", "representations",
+        cols = ("id", "status", "intent", "iterations",
                 "created_by", "created_on")
         self._table = ttk.Treeview(
             section, columns=cols, show="headings",
@@ -149,12 +149,12 @@ class EntityFrame(ctk.CTkFrame):
         )
 
         headings = {
-            "id":              ("ID",         "center"),
-            "status":          ("Status",     "w"),
-            "intent":          ("Intent",     "w"),
-            "representations": ("Reps",       "center"),
-            "created_by":      ("Created By", "w"),
-            "created_on":      ("Created On", "w"),
+            "id":         ("ID",         "center"),
+            "status":     ("Status",     "w"),
+            "intent":     ("Intent",     "w"),
+            "iterations": ("Iters",      "center"),
+            "created_by": ("Created By", "w"),
+            "created_on": ("Created On", "w"),
         }
         for col, (heading, anchor) in headings.items():
             self._table.heading(col, text=heading, anchor=anchor)
@@ -229,7 +229,7 @@ class EntityFrame(ctk.CTkFrame):
             tag = f"status_{status_val}"
             self._table.insert("", "end", iid=v.id, tags=(tag,), values=(
                 v.id, status_text, intent_short,
-                len(v.representations), v.created_by, v.created_on,
+                len(v.iterations), v.created_by, v.created_on,
             ))
 
     # ------------------------------------------------------------------

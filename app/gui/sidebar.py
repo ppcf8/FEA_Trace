@@ -5,9 +5,8 @@ Renders the collapsible hierarchy supporting multiple entities:
 
   EV24 · Front Crossmember
    └─ V01  ● WIP
-       └─ R01  IMPLICIT
-           └─ I01
-               └─ Run 01  ● Converged
+       └─ I01  IMPLICIT
+           └─ Run 01  ● Converged
 
   EV24 · Rear Crossmember
    └─ V01  ● WIP
@@ -199,37 +198,29 @@ class Sidebar(ctk.CTkFrame):
             )
             self._node_map[v_node] = ("version", entity_path, v.id)
 
-            for r in v.representations:
-                r_node = self._tree.insert(
+            for i in v.iterations:
+                i_node = self._tree.insert(
                     v_node, "end",
-                    text=f"  {r.id}  {r.solver_type.value}",
+                    text=f"  {i.id}  {i.solver_type.value}",
                     open=True,
                 )
-                self._node_map[r_node] = ("representation", entity_path, v.id, r.id)
+                self._node_map[i_node] = ("iteration", entity_path, v.id, i.id)
 
-                for i in r.iterations:
-                    i_node = self._tree.insert(
-                        r_node, "end",
-                        text=f"  {i.id}",
-                        open=True,
+                for run in i.runs:
+                    run_status  = run.status.value
+                    status_text = _RUN_STATUS_TEXT.get(run_status, run_status)
+                    tag         = _STATUS_TAG.get(run_status, "")
+                    prod_suffix = "  ★" if run.artifacts.is_production else ""
+                    tags        = (tag, "tag_prod_marker") \
+                                  if run.artifacts.is_production else (tag,)
+
+                    run_node = self._tree.insert(
+                        i_node, "end",
+                        text=f"  Run {run.id:02d}  {status_text}{prod_suffix}",
+                        tags=tags,
                     )
-                    self._node_map[i_node] = ("iteration", entity_path, v.id, r.id, i.id)
-
-                    for run in i.runs:
-                        run_status  = run.status.value
-                        status_text = _RUN_STATUS_TEXT.get(run_status, run_status)
-                        tag         = _STATUS_TAG.get(run_status, "")
-                        prod_suffix = "  ★" if run.artifacts.is_production else ""
-                        tags        = (tag, "tag_prod_marker") \
-                                      if run.artifacts.is_production else (tag,)
-
-                        run_node = self._tree.insert(
-                            i_node, "end",
-                            text=f"  Run {run.id:02d}  {status_text}{prod_suffix}",
-                            tags=tags,
-                        )
-                        self._node_map[run_node] = (
-                            "run", entity_path, v.id, r.id, i.id, run.id)
+                    self._node_map[run_node] = (
+                        "run", entity_path, v.id, i.id, run.id)
 
     def remove_entity(self, entity_path: str) -> None:
         """Removes an entity and all its children from the tree."""

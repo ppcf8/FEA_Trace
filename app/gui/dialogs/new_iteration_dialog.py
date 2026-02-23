@@ -6,20 +6,32 @@ from __future__ import annotations
 
 import os
 import customtkinter as ctk
+
+from schema import SolverType
+
+
 class NewIterationDialog(ctk.CTkToplevel):
     """
-    result: (description: str, design_changes: list[str],
+    result: (solver_type: SolverType, analysis_types: list[str],
+             description: str, design_changes: list[str],
              created_by: str) | None
     """
+
+    _ANALYSIS_OPTIONS = [
+        "NLSTAT", "LINEAR", "NORMAL MODES", "BUCKLING",
+        "FATIGUE", "FREQ RESPONSE", "TRANSIENT",
+        "CRASH", "QUASI-STATIC", "TOPOLOGY OPT",
+    ]
 
     def __init__(self, parent):
         super().__init__(parent)
         self.title("New Iteration")
-        self.geometry("520x420")
+        self.geometry("540x600")
         self.resizable(False, False)
         self.grab_set()
 
         self.result = None
+        self._analysis_vars: dict[str, ctk.BooleanVar] = {}
         self._build()
         try:
             self._created_by_var.set(os.getlogin())
@@ -38,39 +50,71 @@ class NewIterationDialog(ctk.CTkToplevel):
         form.grid(row=1, column=0, sticky="ew", padx=24)
         form.columnconfigure(1, weight=1)
 
+        # Solver type
+        ctk.CTkLabel(
+            form, text="Solver Type *",
+            font=ctk.CTkFont(size=12), anchor="w",
+        ).grid(row=0, column=0, padx=(0, 12), pady=8, sticky="w")
+
+        self._solver_var = ctk.StringVar(value="IMPLICIT")
+        ctk.CTkSegmentedButton(
+            form,
+            values=["IMPLICIT", "EXPLICIT", "MBD"],
+            variable=self._solver_var,
+            width=280,
+        ).grid(row=0, column=1, pady=8, sticky="w")
+
+        # Analysis types
+        ctk.CTkLabel(
+            form, text="Analysis Types *",
+            font=ctk.CTkFont(size=12), anchor="nw",
+        ).grid(row=1, column=0, padx=(0, 12), pady=(8, 0), sticky="nw")
+
+        checks = ctk.CTkFrame(form, fg_color="transparent")
+        checks.grid(row=1, column=1, pady=(8, 0), sticky="w")
+
+        for idx, atype in enumerate(self._ANALYSIS_OPTIONS):
+            var = ctk.BooleanVar()
+            self._analysis_vars[atype] = var
+            ctk.CTkCheckBox(
+                checks, text=atype, variable=var,
+                font=ctk.CTkFont(size=12),
+            ).grid(row=idx // 2, column=idx % 2,
+                   padx=(0, 20), pady=2, sticky="w")
+
         # Description
         ctk.CTkLabel(
             form, text="Description *",
             font=ctk.CTkFont(size=12), anchor="nw",
-        ).grid(row=0, column=0, padx=(0, 12), pady=(0, 6), sticky="nw")
+        ).grid(row=2, column=0, padx=(0, 12), pady=(10, 6), sticky="nw")
 
-        self._desc_box = ctk.CTkTextbox(form, height=70, wrap="word")
-        self._desc_box.grid(row=0, column=1, pady=(0, 6), sticky="ew")
+        self._desc_box = ctk.CTkTextbox(form, height=60, wrap="word")
+        self._desc_box.grid(row=2, column=1, pady=(10, 6), sticky="ew")
 
         # Design changes
         ctk.CTkLabel(
             form, text="Design Changes",
             font=ctk.CTkFont(size=12), anchor="nw",
-        ).grid(row=1, column=0, padx=(0, 12), pady=(8, 6), sticky="nw")
+        ).grid(row=3, column=0, padx=(0, 12), pady=(8, 6), sticky="nw")
 
-        self._changes_box = ctk.CTkTextbox(form, height=80, wrap="word")
-        self._changes_box.grid(row=1, column=1, pady=(8, 0), sticky="ew")
+        self._changes_box = ctk.CTkTextbox(form, height=60, wrap="word")
+        self._changes_box.grid(row=3, column=1, pady=(8, 0), sticky="ew")
 
         ctk.CTkLabel(
             form, text="One change per line.",
             font=ctk.CTkFont(size=11),
             text_color="gray", anchor="w",
-        ).grid(row=2, column=1, sticky="w", pady=(2, 6))
+        ).grid(row=4, column=1, sticky="w", pady=(2, 6))
 
         # Created By
         ctk.CTkLabel(
             form, text="Created By *",
             font=ctk.CTkFont(size=12), anchor="w",
-        ).grid(row=3, column=0, padx=(0, 12), pady=6, sticky="w")
+        ).grid(row=5, column=0, padx=(0, 12), pady=6, sticky="w")
 
         self._created_by_var = ctk.StringVar()
         ctk.CTkEntry(form, textvariable=self._created_by_var,
-                     width=200).grid(row=3, column=1, pady=6, sticky="w")
+                     width=200).grid(row=5, column=1, pady=6, sticky="w")
 
         # Error
         self._error_label = ctk.CTkLabel(
@@ -81,7 +125,7 @@ class NewIterationDialog(ctk.CTkToplevel):
 
         # Buttons
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.grid(row=3, column=0, padx=24, pady=20, sticky="e")
+        btn_frame.grid(row=3, column=0, padx=24, pady=16, sticky="e")
 
         ctk.CTkButton(
             btn_frame, text="Cancel", width=100,
@@ -95,10 +139,16 @@ class NewIterationDialog(ctk.CTkToplevel):
         ).pack(side="left")
 
     def _on_confirm(self) -> None:
+        solver_str   = self._solver_var.get()
+        analysis     = [k for k, v in self._analysis_vars.items() if v.get()]
         description  = self._desc_box.get("1.0", "end").strip()
         changes_raw  = self._changes_box.get("1.0", "end").strip()
         created_by   = self._created_by_var.get().strip()
 
+        if not analysis:
+            self._error_label.configure(
+                text="Select at least one analysis type.")
+            return
         if not description:
             self._error_label.configure(text="Description is required.")
             return
@@ -107,5 +157,5 @@ class NewIterationDialog(ctk.CTkToplevel):
             return
 
         changes = [c.strip() for c in changes_raw.splitlines() if c.strip()]
-        self.result = (description, changes, created_by)
+        self.result = (SolverType(solver_str), analysis, description, changes, created_by)
         self.destroy()

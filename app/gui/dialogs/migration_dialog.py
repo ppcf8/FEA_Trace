@@ -70,14 +70,15 @@ class MigrationDialog(ctk.CTkToplevel):
         changes_box.insert("1.0", changes_text.strip() or "No details available.")
         changes_box.configure(state="disabled")
 
+        backup_name = f"version_log_{log_ver.replace('.', '_')}.yaml"
         ctk.CTkLabel(
             self,
             text=(
-                "A backup of the original log will NOT be created automatically.\n"
-                "Consider copying the entity folder before proceeding."
+                f"A backup of the original log will be saved as:\n"
+                f"  {backup_name}\n"
+                "in the same folder before any changes are made."
             ),
             font=ctk.CTkFont(size=12),
-            text_color="#E05555",
             justify="left",
         ).grid(row=3, column=0, padx=24, pady=(12, 0), sticky="w")
 

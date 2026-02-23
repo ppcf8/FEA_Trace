@@ -23,7 +23,6 @@ from app.core.session import SessionManager, DEFAULT_SESSION_DIR
 from app.gui.sidebar import Sidebar
 from app.gui.frames.entity_frame import EntityFrame
 from app.gui.frames.version_frame import VersionFrame
-from app.gui.frames.representation_frame import RepresentationFrame
 from app.gui.frames.iteration_frame import IterationFrame
 from app.gui.frames.run_frame import RunFrame
 from app.gui.frames.welcome_frame import WelcomeFrame
@@ -117,12 +116,11 @@ class MainWindow(ctk.CTk):
         self._main_panel.rowconfigure(0, weight=1)
         self._main_panel.columnconfigure(0, weight=1)
 
-        self._frames["welcome"]        = WelcomeFrame(self._main_panel, self)
-        self._frames["entity"]         = EntityFrame(self._main_panel, self)
-        self._frames["version"]        = VersionFrame(self._main_panel, self)
-        self._frames["representation"] = RepresentationFrame(self._main_panel, self)
-        self._frames["iteration"]      = IterationFrame(self._main_panel, self)
-        self._frames["run"]            = RunFrame(self._main_panel, self)
+        self._frames["welcome"]   = WelcomeFrame(self._main_panel, self)
+        self._frames["entity"]    = EntityFrame(self._main_panel, self)
+        self._frames["version"]   = VersionFrame(self._main_panel, self)
+        self._frames["iteration"] = IterationFrame(self._main_panel, self)
+        self._frames["run"]       = RunFrame(self._main_panel, self)
 
         for f in self._frames.values():
             f.grid(row=0, column=0, sticky="nsew")
@@ -173,28 +171,20 @@ class MainWindow(ctk.CTk):
             self._frames["version"].load(proj, version_id)
             self._show_frame("version")
 
-    def show_representation(self, entity_path: str,
-                            version_id: str, rep_id: str) -> None:
-        proj = self._projects.get(entity_path)
-        if proj:
-            self._active_path = entity_path
-            self._frames["representation"].load(proj, version_id, rep_id)
-            self._show_frame("representation")
-
     def show_iteration(self, entity_path: str,
-                       version_id: str, rep_id: str, iter_id: str) -> None:
+                       version_id: str, iter_id: str) -> None:
         proj = self._projects.get(entity_path)
         if proj:
             self._active_path = entity_path
-            self._frames["iteration"].load(proj, version_id, rep_id, iter_id)
+            self._frames["iteration"].load(proj, version_id, iter_id)
             self._show_frame("iteration")
 
     def show_run(self, entity_path: str,
-                 version_id: str, rep_id: str, iter_id: str, run_id: int) -> None:
+                 version_id: str, iter_id: str, run_id: int) -> None:
         proj = self._projects.get(entity_path)
         if proj:
             self._active_path = entity_path
-            self._frames["run"].load(proj, version_id, rep_id, iter_id, run_id)
+            self._frames["run"].load(proj, version_id, iter_id, run_id)
             self._show_frame("run")
 
     # ------------------------------------------------------------------
@@ -207,13 +197,11 @@ class MainWindow(ctk.CTk):
                 self.show_entity(entity_path)
             case "version":
                 self.show_version(entity_path, *ids)
-            case "representation":
-                self.show_representation(entity_path, *ids)
             case "iteration":
                 self.show_iteration(entity_path, *ids)
             case "run":
-                v_id, r_id, i_id, run_id = ids
-                self.show_run(entity_path, v_id, r_id, i_id, int(run_id))
+                v_id, i_id, run_id = ids
+                self.show_run(entity_path, v_id, i_id, int(run_id))
 
     def refresh_sidebar(self) -> None:
         """Refreshes the active entity's subtree in the sidebar."""
@@ -324,11 +312,9 @@ class MainWindow(ctk.CTk):
                 _user = os.getlogin()
             except OSError:
                 _user = os.environ.get("USERNAME", "unknown")
+            old_ver = raw.get("schema_version", "0.0.0")
             raw, notes = migrate(raw, SCHEMA_VERSION, _user)
-            log_path.write_text(
-                yaml.dump(raw, allow_unicode=True,
-                          sort_keys=False, default_flow_style=False),
-                encoding="utf-8")
+            self._backup_and_write(log_path, old_ver, raw)
             self.set_status(f"Log auto-migrated: {'; '.join(notes)}")
 
         if status == "confirm":
@@ -341,15 +327,26 @@ class MainWindow(ctk.CTk):
                 _user = os.getlogin()
             except OSError:
                 _user = os.environ.get("USERNAME", "unknown")
+            old_ver = raw.get("schema_version", "0.0.0")
             raw, notes = migrate(raw, SCHEMA_VERSION,
                                  _user, confirmed=True)
-            log_path.write_text(
-                yaml.dump(raw, allow_unicode=True,
-                          sort_keys=False, default_flow_style=False),
-                encoding="utf-8")
+            self._backup_and_write(log_path, old_ver, raw)
             self.set_status(f"Log migrated: {'; '.join(notes)}")
 
         return "ok"
+
+    @staticmethod
+    def _backup_and_write(log_path: Path, old_version: str, raw: dict) -> None:
+        """Rename the original log to version_log_<old_version>.yaml, then write
+        the migrated content to the canonical version_log.yaml path."""
+        backup = log_path.with_name(
+            f"{log_path.stem}_{old_version.replace('.', '_')}.yaml")
+        if not backup.exists():
+            log_path.rename(backup)
+        log_path.write_text(
+            yaml.dump(raw, allow_unicode=True,
+                      sort_keys=False, default_flow_style=False),
+            encoding="utf-8")
 
     # ------------------------------------------------------------------
     # Session

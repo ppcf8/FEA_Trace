@@ -35,7 +35,6 @@ class RunFrame(ctk.CTkFrame):
         self._window      = window
         self._project:    Optional[FEAProject] = None
         self._version_id: Optional[str]        = None
-        self._rep_id:     Optional[str]        = None
         self._iter_id:    Optional[str]        = None
         self._run_id:     Optional[int]        = None
         self._build()
@@ -256,20 +255,18 @@ class RunFrame(ctk.CTkFrame):
     # ------------------------------------------------------------------
 
     def load(self, project: FEAProject, version_id: str,
-             rep_id: str, iter_id: str, run_id: int) -> None:
+             iter_id: str, run_id: int) -> None:
         self._project    = project
         self._version_id = version_id
-        self._rep_id     = rep_id
         self._iter_id    = iter_id
         self._run_id     = run_id
 
         v   = project._get_version(version_id)
-        r   = project._get_representation(v, rep_id)
-        i   = project._get_iteration(r, iter_id)
+        i   = project._get_iteration(v, iter_id)
         run = project._get_run(i, run_id)
 
         self._title_label.configure(
-            text=f"Run  {version_id} / {rep_id} / {iter_id} / {run_id:02d}")
+            text=f"Run  {version_id} / {iter_id} / {run_id:02d}")
 
         badge_text, badge_color = _STATUS_BADGE.get(
             run.status.value, (run.status.value, "#444444"))
@@ -296,7 +293,7 @@ class RunFrame(ctk.CTkFrame):
         if run.artifacts.is_production:
             from app.core.models import _check_production_artifacts
             warnings = _check_production_artifacts(
-                project.path, r.solver_type, i.filename_base, run_id)
+                project.path, i.solver_type, i.filename_base, run_id)
             self._show_warnings(warnings)
         else:
             self._warning_panel.grid_remove()
@@ -348,10 +345,8 @@ class RunFrame(ctk.CTkFrame):
             return
         comments = self._comments_box.get("1.0", "end").strip()
         try:
-            # FIX Bug 6: use update_run_comments instead of update_run_status
-            # to avoid hitting same-status transition validation
             warnings = self._project.update_run_comments(
-                self._version_id, self._rep_id, self._iter_id, self._run_id,
+                self._version_id, self._iter_id, self._run_id,
                 comments=comments,
                 is_production=self._production_var.get(),
             )
@@ -368,16 +363,14 @@ class RunFrame(ctk.CTkFrame):
             ext = f".{ext}"
 
         v   = self._project._get_version(self._version_id)
-        r   = self._project._get_representation(v, self._rep_id)
-        i   = self._project._get_iteration(r, self._iter_id)
+        i   = self._project._get_iteration(v, self._iter_id)
         run = self._project._get_run(i, self._run_id)
 
         if ext not in run.artifacts.output:
             new_output = run.artifacts.output + [ext]
             try:
-                # FIX Bug 6: use update_run_comments for artifact-only updates
                 self._project.update_run_comments(
-                    self._version_id, self._rep_id, self._iter_id, self._run_id,
+                    self._version_id, self._iter_id, self._run_id,
                     output_artifacts=new_output,
                     is_production=self._production_var.get(),
                 )
@@ -396,7 +389,7 @@ class RunFrame(ctk.CTkFrame):
         is_prod = self._production_var.get()
         try:
             warnings = self._project.update_production_flag(
-                self._version_id, self._rep_id, self._iter_id,
+                self._version_id, self._iter_id,
                 self._run_id, is_prod,
             )
             self._show_warnings(warnings)
@@ -414,7 +407,7 @@ class RunFrame(ctk.CTkFrame):
         comments = self._comments_box.get("1.0", "end").strip()
         try:
             warnings = self._project.update_run_status(
-                self._version_id, self._rep_id, self._iter_id, self._run_id,
+                self._version_id, self._iter_id, self._run_id,
                 target,
                 comments=comments,
                 is_production=self._production_var.get(),
@@ -427,7 +420,7 @@ class RunFrame(ctk.CTkFrame):
         self._window.refresh_sidebar()
         self._window.set_status(f"Run {self._run_id:02d} → {target.value}")
         self.load(self._project, self._version_id,
-                  self._rep_id, self._iter_id, self._run_id)
+                  self._iter_id, self._run_id)
 
     def _show_error(self, title: str, message: str) -> None:
         from tkinter import messagebox

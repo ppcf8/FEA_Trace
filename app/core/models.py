@@ -7,11 +7,11 @@ from schema import (
     SCHEMA_VERSION, SolverType, RunStatus, VersionStatus,
     VERSION_STATUS_TRANSITIONS, RUN_STATUS_TRANSITIONS,
     REQUIRED_FOLDERS, SOLVER_EXTENSIONS, generate_entity_id,
-    next_version_id, next_representation_id, next_iteration_id, next_run_id,
+    next_version_id, next_iteration_id, next_run_id,
     build_filename_base, build_run_filename,
     validate_status_transition, validate_mandatory_fields,
     ArtifactRecord, RunRecord, IterationRecord,
-    RepresentationRecord, VersionRecord, EntityRecord, VersionLog,
+    VersionRecord, EntityRecord, VersionLog,
 )
 from app.config import (
     LOCK_TIMEOUT_SECONDS, LOCK_FILENAME, LOG_FILENAME,
@@ -77,22 +77,16 @@ def _deserialise_iteration(raw):
         id=raw["id"], description=raw["description"],
         filename_base=raw["filename_base"],
         created_by=raw["created_by"], created_on=raw["created_on"],
+        solver_type=SolverType(raw.get("solver_type", "IMPLICIT")),
+        analysis_types=raw.get("analysis_types", []),
         design_changes=raw.get("design_changes",[]),
         runs=[_deserialise_run(r) for r in raw.get("runs",[])])
-
-def _deserialise_representation(raw):
-    return RepresentationRecord(
-        id=raw["id"], solver_type=SolverType(raw["solver_type"]),
-        analysis_types=raw.get("analysis_types",[]),
-        description=raw["description"],
-        created_by=raw["created_by"], created_on=raw["created_on"],
-        iterations=[_deserialise_iteration(i) for i in raw.get("iterations",[])])
 
 def _deserialise_version(raw):
     return VersionRecord(
         id=raw["id"], status=VersionStatus(raw["status"]),
         intent=raw["intent"], created_by=raw["created_by"], created_on=raw["created_on"],
-        representations=[_deserialise_representation(r) for r in raw.get("representations",[])],
+        iterations=[_deserialise_iteration(i) for i in raw.get("iterations",[])],
         notes=raw.get("notes",[]))
 
 def _load_log(log_path):
@@ -118,14 +112,11 @@ def _serialise_log(log):
                      "is_production":r.artifacts.is_production}}
     def iter_d(i): return {"id":i.id,"description":i.description,
         "filename_base":i.filename_base,"created_by":i.created_by,"created_on":i.created_on,
+        "solver_type":i.solver_type.value,"analysis_types":i.analysis_types,
         "design_changes":i.design_changes,"runs":[run_d(r) for r in i.runs]}
-    def rep_d(r): return {"id":r.id,"solver_type":r.solver_type.value,
-        "analysis_types":r.analysis_types,"description":r.description,
-        "created_by":r.created_by,"created_on":r.created_on,
-        "iterations":[iter_d(i) for i in r.iterations]}
     def ver_d(v): return {"id":v.id,"status":v.status.value,"intent":v.intent,
         "created_by":v.created_by,"created_on":v.created_on,"notes":v.notes,
-        "representations":[rep_d(r) for r in v.representations]}
+        "iterations":[iter_d(i) for i in v.iterations]}
     e = log.entity
     return {"schema_version":log.schema_version,
             "entity":{"id":e.id,"name":e.name,"project":e.project,
@@ -146,15 +137,12 @@ def _validate_log(log):
     for v in log.entity.versions:
         m = validate_mandatory_fields(v)
         if m: errors.append(f"Version {v.id} missing: {m}")
-        for r in v.representations:
-            m = validate_mandatory_fields(r)
-            if m: errors.append(f"Rep {v.id}/{r.id} missing: {m}")
-            for i in r.iterations:
-                m = validate_mandatory_fields(i)
-                if m: errors.append(f"Iter {v.id}/{r.id}/{i.id} missing: {m}")
-                for run in i.runs:
-                    m = validate_mandatory_fields(run)
-                    if m: errors.append(f"Run {v.id}/{r.id}/{i.id}/{run.id} missing: {m}")
+        for i in v.iterations:
+            m = validate_mandatory_fields(i)
+            if m: errors.append(f"Iter {v.id}/{i.id} missing: {m}")
+            for run in i.runs:
+                m = validate_mandatory_fields(run)
+                if m: errors.append(f"Run {v.id}/{i.id}/{run.id} missing: {m}")
     if errors:
         raise ValidationError("Log validation failed:\n" + "\n".join(f"  - {e}" for e in errors))
 
@@ -231,44 +219,35 @@ class FEAProject:
         v.status = new_status
         self._write()
 
-    def add_representation(self, version_id, solver_type, analysis_types, description, created_by):
-        v = self._get_version(version_id)
-        existing = [r.id for r in v.representations]
-        r = RepresentationRecord(id=next_representation_id(existing), solver_type=solver_type,
-                                 analysis_types=analysis_types, description=description,
-                                 created_by=created_by, created_on=_now())
-        v.representations.append(r); self._write(); return r
-
-    def add_iteration(self, version_id, rep_id, description, created_by, design_changes=None):
+    def add_iteration(self, version_id, solver_type, analysis_types,
+                      description, created_by, design_changes=None):
         v        = self._get_version(version_id)
-        r        = self._get_representation(v, rep_id)
-        existing = [i.id for i in r.iterations]
+        existing = [i.id for i in v.iterations]
         iter_id  = next_iteration_id(existing)
         fname    = build_filename_base(self._log.entity.project, self._log.entity.id,
-                                       version_id, rep_id, iter_id, r.solver_type)
+                                       version_id, iter_id, solver_type)
         i = IterationRecord(id=iter_id, description=description, filename_base=fname,
                             created_by=created_by, created_on=_now(),
+                            solver_type=solver_type, analysis_types=analysis_types,
                             design_changes=design_changes or [])
-        r.iterations.append(i); self._write(); return i
+        v.iterations.append(i); self._write(); return i
 
-    def add_run(self, version_id, rep_id, iter_id, created_by, comments=""):
+    def add_run(self, version_id, iter_id, created_by, comments=""):
         v      = self._get_version(version_id)
-        r      = self._get_representation(v, rep_id)
-        i      = self._get_iteration(r, iter_id)
+        i      = self._get_iteration(v, iter_id)
         run_id = next_run_id([run.id for run in i.runs])
-        run_name = build_run_filename(i.filename_base, run_id, r.solver_type)
+        run_name = build_run_filename(i.filename_base, run_id, i.solver_type)
         run = RunRecord(id=run_id, name=run_name, date=_now(), status=RunStatus.WIP,
                         created_by=created_by, comments=comments,
-                        artifacts=ArtifactRecord(input=[SOLVER_EXTENSIONS[r.solver_type]]))
+                        artifacts=ArtifactRecord(input=[SOLVER_EXTENSIONS[i.solver_type]]))
         i.runs.append(run); self._write(); return run
 
-    def update_run_status(self, version_id, rep_id, iter_id, run_id,
+    def update_run_status(self, version_id, iter_id, run_id,
                           new_status, comments="", output_artifacts=None, is_production=None):
         """Transitions run to a new status. Same-status calls are blocked — use
         update_run_comments() for comment/artifact-only updates."""
         v   = self._get_version(version_id)
-        r   = self._get_representation(v, rep_id)
-        i   = self._get_iteration(r, iter_id)
+        i   = self._get_iteration(v, iter_id)
         run = self._get_run(i, run_id)
         ok, reason = validate_status_transition(run.status, new_status)
         if not ok: raise StatusTransitionError(reason)
@@ -277,13 +256,11 @@ class FEAProject:
         if output_artifacts is not None: run.artifacts.output     = output_artifacts
         if is_production is not None:    run.artifacts.is_production = is_production
         warnings = (_check_production_artifacts(
-                        self._path, r.solver_type, i.filename_base, run_id)
+                        self._path, i.solver_type, i.filename_base, run_id)
                     if run.artifacts.is_production else [])
         self._write(); return warnings
 
-    # FIX Bug 6/8: dedicated method for comment/artifact updates that does NOT
-    # go through status-transition validation, so it works on any status.
-    def update_run_comments(self, version_id, rep_id, iter_id, run_id,
+    def update_run_comments(self, version_id, iter_id, run_id,
                             comments=None, output_artifacts=None, is_production=None):
         """
         Updates mutable run fields (comments, output artifacts, production flag)
@@ -291,25 +268,23 @@ class FEAProject:
         Returns production artifact warnings if is_production is True.
         """
         v   = self._get_version(version_id)
-        r   = self._get_representation(v, rep_id)
-        i   = self._get_iteration(r, iter_id)
+        i   = self._get_iteration(v, iter_id)
         run = self._get_run(i, run_id)
         if comments is not None:         run.comments             = comments
         if output_artifacts is not None: run.artifacts.output     = output_artifacts
         if is_production is not None:    run.artifacts.is_production = is_production
         warnings = (_check_production_artifacts(
-                        self._path, r.solver_type, i.filename_base, run_id)
+                        self._path, i.solver_type, i.filename_base, run_id)
                     if run.artifacts.is_production else [])
         self._write(); return warnings
 
-    def update_production_flag(self, version_id, rep_id, iter_id, run_id, is_production):
+    def update_production_flag(self, version_id, iter_id, run_id, is_production):
         v   = self._get_version(version_id)
-        r   = self._get_representation(v, rep_id)
-        i   = self._get_iteration(r, iter_id)
+        i   = self._get_iteration(v, iter_id)
         run = self._get_run(i, run_id)
         run.artifacts.is_production = is_production
         warnings = (_check_production_artifacts(
-                        self._path, r.solver_type, i.filename_base, run_id)
+                        self._path, i.solver_type, i.filename_base, run_id)
                     if is_production else [])
         self._write(); return warnings
 
@@ -321,15 +296,10 @@ class FEAProject:
             if v.id == vid: return v
         raise ValidationError(f"Version '{vid}' not found.")
 
-    def _get_representation(self, version, rid):
-        for r in version.representations:
-            if r.id == rid: return r
-        raise ValidationError(f"Representation '{rid}' not found in {version.id}.")
-
-    def _get_iteration(self, rep, iid):
-        for i in rep.iterations:
+    def _get_iteration(self, version, iid):
+        for i in version.iterations:
             if i.id == iid: return i
-        raise ValidationError(f"Iteration '{iid}' not found in {rep.id}.")
+        raise ValidationError(f"Iteration '{iid}' not found in {version.id}.")
 
     def _get_run(self, iteration, run_id):
         for run in iteration.runs:
