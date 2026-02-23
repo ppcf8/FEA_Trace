@@ -108,6 +108,15 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 ## Infrastructure
 
+- **App icon** — `fea_trace.ico` loaded via `iconbitmap()` in `MainWindow.__init__` (title bar);
+  `SetCurrentProcessExplicitAppUserModelID` called in `main.py` before window creation so
+  the taskbar also shows the app icon. No-op when compiled to `.exe`.
+  `main.py`, `app/gui/main_window.py`, `fea_trace.ico` _(2026-02-23)_
+
+- **App version decoupled from schema version** — `APP_VERSION` in `app/config.py` set
+  independently of `SCHEMA_VERSION`; bumped to `2.0.0`.
+  `app/config.py` _(2026-02-23)_
+
 - **TTK clam theme** — `ttk.Style(self).theme_use("clam")` called before layout
   build so custom heading/row colours are honoured on Windows.
   `app/gui/main_window.py` _(initial)_
