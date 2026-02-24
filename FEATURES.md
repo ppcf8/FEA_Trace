@@ -146,6 +146,15 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   stored in `app/config.py`.
   `app/config.py`, `app/gui/main_window.py` _(2026-02-24)_
 
+- **Run input file autocheck** — The solver deck (`.fem` / `.rad` / `.xml`) is
+  always checked on disk when a Run panel is displayed or its state changes, regardless
+  of run status. For non-production runs an **"⚠  Input File Not Found"** warning panel
+  appears when the file is absent. For production runs the existing
+  **"⚠  Production Artifact Warnings"** panel is shown instead (covering both the solver
+  deck and the `.h3d` output file). `_check_input_file()` added to `app/core/models.py`;
+  `RunFrame` gains `_get_warnings()` helper and a dynamic warning-panel title.
+  `app/core/models.py`, `app/gui/frames/run_frame.py` _(2026-02-24)_
+
 - **Run panel clipboard & folder actions** — Solver Deck row gains two PNG icon
   buttons: copy filename to clipboard (`copy.png`) and copy full path to clipboard
   (`copy_with_path.png`). An **Open Folder** button opens the `Run_##` subfolder in
@@ -213,4 +222,3 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Not Implemented
 
 <!-- Add planned or desired features not yet started. Format: **Feature** — description. -->
-- **Run input file autocheck** — always autocheck input file for a run, no matter the status. In case of production runs which uses the artifacts feature keep the current logic.

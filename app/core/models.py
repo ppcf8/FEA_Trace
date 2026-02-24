@@ -153,11 +153,22 @@ def _check_production_artifacts(entity_path, solver_type, filename_base, run_id)
     warnings, required = [], REQUIRED_PRODUCTION_ARTIFACTS.get(solver_type, [])
     base = f"{filename_base}_{run_id:02d}"
     for ext in required:
-        folder = RUNS_FOLDER if ext == SOLVER_EXTENSIONS[solver_type] else RESULTS_FOLDER
-        target = entity_path / folder / f"{base}{ext}"
+        if ext == SOLVER_EXTENSIONS[solver_type]:
+            target = entity_path / RUNS_FOLDER / f"Run_{run_id:02d}" / f"{base}{ext}"
+        else:
+            target = entity_path / RESULTS_FOLDER / f"{base}{ext}"
         if not target.exists():
             warnings.append(f"Missing: {target.relative_to(entity_path)}")
     return warnings
+
+def _check_input_file(entity_path, solver_type, filename_base, run_id):
+    """Check whether the solver deck (input file) exists in the run subfolder."""
+    ext    = SOLVER_EXTENSIONS[solver_type]
+    base   = f"{filename_base}_{run_id:02d}"
+    target = entity_path / RUNS_FOLDER / f"Run_{run_id:02d}" / f"{base}{ext}"
+    if not target.exists():
+        return [f"Missing: {target.relative_to(entity_path)}"]
+    return []
 
 class FEAProject:
     def __init__(self, entity_path, log):
