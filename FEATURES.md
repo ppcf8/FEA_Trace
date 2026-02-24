@@ -126,6 +126,12 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/gui/theme.py`, `app/gui/frames/version_frame.py`,
   `app/gui/frames/iteration_frame.py`, `app/gui/frames/run_frame.py` _(2026-02-24)_
 
+- **Version status badge styled as pill** — The top-left status badge on VersionFrame
+  now matches the RunFrame style: coloured background pill (`corner_radius=6`,
+  `padx=12`, `pady=4`, bold white text). Colours: WIP `#4A90D9`, Production `#2D8A4E`,
+  Deprecated `#888888`.
+  `app/gui/frames/version_frame.py` _(2026-02-24)_
+
 - **Help menu with About dialog** — Help cascade added to the menubar (alongside
   File and Settings). About option opens a `CTkToplevel` modal showing app version,
   schema version, developer name, and email. `DEVELOPER_NAME` and `DEVELOPER_EMAIL`
@@ -191,7 +197,5 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 <!-- Add planned or desired features not yet started. Format: **Feature** — description. -->
 - **Run input file autocheck** — always autocheck input file for a run, no matter the status. In case of production runs which uses the artifacts feature keep the current logic.
-
-- **Top Left note status on version tab** — for the version the top left note status style should be like the one on the run tab.
 
 - **Remove design changes field** - the iteration metadata has a description field and a design changes fiels which is redundant. Remove the design changes field and keep the description one.

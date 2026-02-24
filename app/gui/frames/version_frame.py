@@ -14,9 +14,9 @@ from app.gui.hints import VERSION_TOOLTIP
 
 
 _STATUS_BADGE = {
-    "WIP":        "●  WIP",
-    "production": "●  Production",
-    "deprecated": "●  Deprecated",
+    "WIP":        ("●  WIP",        "#4A90D9"),
+    "production": ("●  Production", "#2D8A4E"),
+    "deprecated": ("●  Deprecated", "#888888"),
 }
 
 _SOLVER_BADGE = {
@@ -72,7 +72,9 @@ class VersionFrame(ctk.CTkFrame):
         add_hint(self._title_label, VERSION_TOOLTIP)
 
         self._status_badge = ctk.CTkLabel(
-            hdr, text="", font=ctk.CTkFont(size=13), anchor="e",
+            hdr, text="",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            corner_radius=6, padx=12, pady=4,
         )
         self._status_badge.grid(row=0, column=1, sticky="e")
 
@@ -199,8 +201,12 @@ class VersionFrame(ctk.CTkFrame):
 
         apply_table_style("Version.Treeview")
         self._title_label.configure(text=f"Version  {v.id}")
+        badge_text, badge_color = _STATUS_BADGE.get(
+            v.status.value, (v.status.value, "#444444"))
         self._status_badge.configure(
-            text=_STATUS_BADGE.get(v.status.value, v.status.value))
+            text=f"  {badge_text}  ",
+            fg_color=badge_color, text_color="#FFFFFF",
+        )
         self._intent_label.configure(text=v.intent.strip())
         self._meta["_created_by"].configure(text=v.created_by)
         self._meta["_created_on"].configure(text=v.created_on)
