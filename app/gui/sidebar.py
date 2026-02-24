@@ -105,11 +105,31 @@ class Sidebar(ctk.CTkFrame):
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
 
+        hdr = ctk.CTkFrame(self, fg_color="transparent")
+        hdr.grid(row=0, column=0, padx=(12, 4), pady=(12, 4), sticky="ew")
+        hdr.columnconfigure(0, weight=1)
+
         ctk.CTkLabel(
-            self, text="NAVIGATOR",
+            hdr, text="NAVIGATOR",
             font=ctk.CTkFont(size=11, weight="bold"),
             anchor="w",
-        ).grid(row=0, column=0, padx=12, pady=(12, 4), sticky="w")
+        ).grid(row=0, column=0, sticky="w")
+
+        ctk.CTkButton(
+            hdr, text="⊟", width=24, height=24,
+            font=ctk.CTkFont(size=14),
+            fg_color="transparent",
+            hover_color=("gray75", "gray30"),
+            command=self._collapse_all,
+        ).grid(row=0, column=1, padx=(0, 2))
+
+        ctk.CTkButton(
+            hdr, text="⊞", width=24, height=24,
+            font=ctk.CTkFont(size=14),
+            fg_color="transparent",
+            hover_color=("gray75", "gray30"),
+            command=self._expand_all,
+        ).grid(row=0, column=2)
 
         tree_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
         tree_frame.grid(row=1, column=0, sticky="nsew", padx=4, pady=(0, 4))
@@ -251,24 +271,58 @@ class Sidebar(ctk.CTkFrame):
             self._on_select(node_type, entity_path, *ids)
 
     # ------------------------------------------------------------------
-    # Right-click context menu (close entity)
+    # Expand / Collapse helpers
     # ------------------------------------------------------------------
 
-    def _on_right_click(self, event) -> None:
-        item = self._tree.identify_row(event.y)
-        if not item:
-            return
-        payload = self._node_map.get(item)
-        if not payload or payload[0] != "entity":
-            return
+    def _set_subtree_open(self, node: str, state: bool) -> None:
+        self._tree.item(node, open=state)
+        for child in self._tree.get_children(node):
+            self._set_subtree_open(child, state)
 
-        entity_path = payload[1]
+    def _expand_all(self) -> None:
+        for node in self._tree.get_children(""):
+            self._set_subtree_open(node, True)
+
+    def _collapse_all(self) -> None:
+        for node in self._tree.get_children(""):
+            self._set_subtree_open(node, False)
+
+    # ------------------------------------------------------------------
+    # Right-click context menu (expand / collapse / close entity)
+    # ------------------------------------------------------------------
+
+    def _make_context_menu(self) -> "tk.Menu":
         import tkinter as tk
-        menu = tk.Menu(self, tearoff=0)
-        menu.add_command(
-            label="Close Entity",
-            command=lambda: self._on_close(entity_path),
+        t = tokens()
+        return tk.Menu(
+            self, tearoff=0,
+            bg=t["bg_secondary"],
+            fg=t["fg"],
+            activebackground=t["bg_selected"],
+            activeforeground=t["fg_selected"],
+            borderwidth=1,
+            relief="flat",
+            font=("Segoe UI", 10),
         )
+
+    def _on_right_click(self, event) -> None:
+        menu = self._make_context_menu()
+
+        item = self._tree.identify_row(event.y)
+        payload = self._node_map.get(item) if item else None
+
+        if payload and payload[0] == "entity":
+            # Clicked on an entity root node — per-entity actions
+            entity_path = payload[1]
+            menu.add_command(label="Expand",   command=lambda: self._set_subtree_open(item, True))
+            menu.add_command(label="Collapse", command=lambda: self._set_subtree_open(item, False))
+            menu.add_separator()
+            menu.add_command(label="Close Entity", command=lambda: self._on_close(entity_path))
+        else:
+            # Clicked on empty space or a child node — global actions
+            menu.add_command(label="Expand All",   command=self._expand_all)
+            menu.add_command(label="Collapse All", command=self._collapse_all)
+
         try:
             menu.tk_popup(event.x_root, event.y_root)
         finally:

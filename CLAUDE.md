@@ -62,11 +62,13 @@ Single-window layout: fixed 240 px sidebar on the left, content panel filling th
 
 **Sidebar tree hierarchy:**
 ```
-ProjectCode · EntityName          ← right-click → "Close Entity"
+ProjectCode · EntityName          ← right-click → Expand / Collapse / Close Entity
  └─ V01  ● WIP
      └─ I01  IMPLICIT
          └─ Run 01  ● Converged  ★
 ```
+
+`⊟` / `⊞` buttons in the NAVIGATOR header collapse/expand the whole tree. Right-click on an entity node → per-entity Expand / Collapse + Close Entity. Right-click on empty space or a child node → global Expand All / Collapse All. The context menu is a `tk.Menu` styled with `tokens()` colours (not `CustomDropdownMenu`, which is widget-anchored only).
 
 All content frames are created once at startup, stacked with `.grid(row=0, col=0, sticky="nsew")`, and switched by calling `frame.load(project, ...)` then `.tkraise()`. Sidebar selection routes through `MainWindow._on_sidebar_select` → `show_entity / show_version / show_iteration / show_run`.
 
