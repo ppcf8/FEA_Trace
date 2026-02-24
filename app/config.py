@@ -18,6 +18,7 @@ REQUIRED_PRODUCTION_ARTIFACTS: dict[SolverType, list[str]] = {
     SolverType.MBD:      [".xml", ".h3d"],
 }
 
+MODELS_FOLDER:  str = "02_Models"
 RUNS_FOLDER:    str = "03_Runs"
 RESULTS_FOLDER: str = "04_Results"
 TIMESTAMP_FORMAT: str = "%Y-%m-%d %H:%M:%S"

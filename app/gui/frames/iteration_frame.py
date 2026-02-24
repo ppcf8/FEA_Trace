@@ -8,6 +8,9 @@ the auto-generated filename base, and the run summary table. Provides the entry 
 
 from __future__ import annotations
 
+import os
+import platform
+import subprocess
 import tkinter as tk
 import tkinter.ttk as ttk
 import customtkinter as ctk
@@ -15,6 +18,7 @@ from pathlib import Path
 from typing import Optional
 from PIL import Image
 
+from app.config import MODELS_FOLDER
 from app.core.models import FEAProject
 from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, SOLVER_COLORS, add_hint
 from app.gui.hints import ITERATION_TOOLTIP
@@ -122,6 +126,14 @@ class IterationFrame(ctk.CTkFrame):
             text="", image=_IMG_COPY,
             width=32, height=28,
             command=self._copy_base,
+        ).pack(side="left", padx=(0, 6))
+
+        ctk.CTkButton(
+            base_frame,
+            text="Open Folder",
+            width=100, height=28,
+            font=ctk.CTkFont(size=12),
+            command=self._open_models_folder,
         ).pack(side="left")
 
     def _build_metadata_panel(self) -> None:
@@ -237,6 +249,7 @@ class IterationFrame(ctk.CTkFrame):
             command=self._on_new_run,
         ).pack(side="left")
 
+
     # ------------------------------------------------------------------
     # Load
     # ------------------------------------------------------------------
@@ -344,6 +357,23 @@ class IterationFrame(ctk.CTkFrame):
         self._window.refresh_sidebar()
         self._window.set_status(
             f"Run {run.id:02d} registered — filename: {run.name}")
+
+    def _open_models_folder(self) -> None:
+        if not self._project:
+            return
+        folder = self._project.path / MODELS_FOLDER
+        if not folder.is_dir():
+            self._window.set_status(f"Folder not found: {folder}")
+            return
+        try:
+            if platform.system() == "Windows":
+                os.startfile(folder)
+            elif platform.system() == "Darwin":
+                subprocess.Popen(["open", folder])
+            else:
+                subprocess.Popen(["xdg-open", folder])
+        except Exception:
+            self._window.set_status(f"Could not open folder: {folder}")
 
     # ------------------------------------------------------------------
     def _resize_columns(self, event=None) -> None:
