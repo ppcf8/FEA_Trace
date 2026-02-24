@@ -206,3 +206,5 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 <!-- Add planned or desired features not yet started. Format: **Feature** — description. -->
 - **Run input file autocheck** — always autocheck input file for a run, no matter the status. In case of production runs which uses the artifacts feature keep the current logic.
+
+- Sync navigator tree highlight with main frame tab.
