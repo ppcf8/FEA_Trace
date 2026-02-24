@@ -310,11 +310,11 @@ class VersionFrame(ctk.CTkFrame):
         if dlg.result is None:
             return
 
-        solver_type, analysis_types, description, design_changes, created_by = dlg.result
+        solver_type, analysis_types, description, created_by = dlg.result
         try:
             self._project.add_iteration(
                 self._version_id, solver_type,
-                analysis_types, description, created_by, design_changes,
+                analysis_types, description, created_by,
             )
         except Exception as exc:
             self._show_error("Create Iteration Failed", str(exc))

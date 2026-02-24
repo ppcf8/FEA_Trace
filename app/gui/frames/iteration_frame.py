@@ -3,8 +3,7 @@ iteration_frame.py — Iteration Detail View
 ===========================================
 Displayed when an Iteration node is selected in the sidebar.
 Shows iteration metadata (including solver type and analysis types),
-design changes list, the auto-generated filename base, and the run
-summary table. Provides the entry point for registering a new Run.
+the auto-generated filename base, and the run summary table. Provides the entry point for registering a new Run.
 """
 
 from __future__ import annotations
@@ -158,21 +157,6 @@ class IterationFrame(ctk.CTkFrame):
         self._analysis_label.grid(row=1, column=1, columnspan=3,
                                   padx=(0, 16), pady=(0, 6), sticky="w")
 
-        # Design changes
-        ctk.CTkLabel(
-            panel, text="Design Changes",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            anchor="nw", width=110,
-        ).grid(row=2, column=0, padx=(16, 4), pady=(0, 6), sticky="nw")
-
-        self._changes_label = ctk.CTkLabel(
-            panel, text="—",
-            font=ctk.CTkFont(size=12),
-            anchor="nw", justify="left", wraplength=540,
-        )
-        self._changes_label.grid(row=2, column=1, columnspan=3,
-                                 padx=(0, 16), pady=(0, 6), sticky="w")
-
         # Created by / on
         fields = [("Created By", "_created_by"), ("Created On", "_created_on")]
         self._meta: dict[str, ctk.CTkLabel] = {}
@@ -181,13 +165,13 @@ class IterationFrame(ctk.CTkFrame):
                 panel, text=label,
                 font=ctk.CTkFont(size=12, weight="bold"),
                 anchor="w", width=110,
-            ).grid(row=3, column=col_i * 2,
+            ).grid(row=2, column=col_i * 2,
                    padx=(16, 4), pady=(0, 12), sticky="w")
             val = ctk.CTkLabel(
                 panel, text="—",
                 font=ctk.CTkFont(size=12), anchor="w",
             )
-            val.grid(row=3, column=col_i * 2 + 1,
+            val.grid(row=2, column=col_i * 2 + 1,
                      padx=(0, 24), pady=(0, 12), sticky="w")
             self._meta[key] = val
 
@@ -286,12 +270,6 @@ class IterationFrame(ctk.CTkFrame):
         self._desc_label.configure(text=i.description.strip())
         self._analysis_label.configure(
             text="  ·  ".join(i.analysis_types) if i.analysis_types else "—")
-
-        if i.design_changes:
-            self._changes_label.configure(
-                text="\n".join(f"• {c}" for c in i.design_changes))
-        else:
-            self._changes_label.configure(text="—")
 
         self._meta["_created_by"].configure(text=i.created_by)
         self._meta["_created_on"].configure(text=i.created_on)
