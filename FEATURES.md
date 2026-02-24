@@ -120,6 +120,18 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `os.getlogin()` with OSError fallback.
   `app/gui/dialogs/` _(initial)_
 
+- **Hints for entity attributes** — Hover tooltips (600 ms delay) on all field
+  labels in VersionFrame, IterationFrame, and RunFrame. Implemented via a `Tooltip`
+  class and `add_hint()` helper in `theme.py`.
+  `app/gui/theme.py`, `app/gui/frames/version_frame.py`,
+  `app/gui/frames/iteration_frame.py`, `app/gui/frames/run_frame.py` _(2026-02-24)_
+
+- **Help menu with About dialog** — Help cascade added to the menubar (alongside
+  File and Settings). About option opens a `CTkToplevel` modal showing app version,
+  schema version, developer name, and email. `DEVELOPER_NAME` and `DEVELOPER_EMAIL`
+  stored in `app/config.py`.
+  `app/config.py`, `app/gui/main_window.py` _(2026-02-24)_
+
 - **Run panel clipboard & folder actions** — Solver Deck row gains two PNG icon
   buttons: copy filename to clipboard (`copy.png`) and copy full path to clipboard
   (`copy_with_path.png`). An **Open Folder** button opens the `Run_##` subfolder in
@@ -178,10 +190,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Not Implemented
 
 <!-- Add planned or desired features not yet started. Format: **Feature** — description. -->
-- **Help Menu** — help dropdown on the file menu toolbar with the About info of the app version, schema and developer contact (Pedro Ferreira pedro.cferreira@ceiia.com). Place the developer contact also on the config file.
-
-- **Hints for entity attributes** — add hints for each entity attribute on the respective tab (version, iteration, run) so the user can easily reacall what each stands for. It doesn't need to be displayed at all times, it could be a mouse hover.
-
 - **Run input file autocheck** — always autocheck input file for a run, no matter the status. In case of production runs which uses the artifacts feature keep the current logic.
 
 - **Top Left note status on version tab** — for the version the top left note status style should be like the one on the run tab.

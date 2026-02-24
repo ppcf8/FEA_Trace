@@ -1,7 +1,9 @@
 from schema import SolverType, SCHEMA_VERSION
 
-APP_TITLE:    str = "FEA Trace"
-APP_VERSION:  str = "2.0.0"
+APP_TITLE:          str = "FEA Trace"
+APP_VERSION:        str = "2.0.0"
+DEVELOPER_NAME:     str = "Pedro Ferreira"
+DEVELOPER_EMAIL:    str = "pedro.cferreira@ceiia.com"
 WINDOW_SIZE:  str = "1280x800"
 WINDOW_MIN_W: int = 900
 WINDOW_MIN_H: int = 600

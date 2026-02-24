@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import customtkinter as ctk
+from app.gui.hints import NEW_VERSION_SUBTITLE
 
 
 class NewVersionDialog(ctk.CTkToplevel):
@@ -16,7 +17,7 @@ class NewVersionDialog(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("New Version")
-        self.geometry("520x400")
+        self.geometry("520x440")
         self.resizable(False, False)
         self.grab_set()
 
@@ -33,10 +34,19 @@ class NewVersionDialog(ctk.CTkToplevel):
         ctk.CTkLabel(
             self, text="New Version",
             font=ctk.CTkFont(size=18, weight="bold"),
-        ).grid(row=0, column=0, padx=24, pady=(20, 16), sticky="w")
+        ).grid(row=0, column=0, padx=24, pady=(20, 4), sticky="w")
+
+        ctk.CTkLabel(
+            self,
+            text=NEW_VERSION_SUBTITLE,
+            font=ctk.CTkFont(size=12),
+            justify="left",
+            anchor="w",
+            wraplength=472,
+        ).grid(row=1, column=0, padx=24, pady=(0, 16), sticky="w")
 
         form = ctk.CTkFrame(self, fg_color="transparent")
-        form.grid(row=1, column=0, sticky="ew", padx=24)
+        form.grid(row=2, column=0, sticky="ew", padx=24)
         form.columnconfigure(1, weight=1)
 
         # Intent
@@ -78,11 +88,11 @@ class NewVersionDialog(ctk.CTkToplevel):
             self, text="", text_color="#E05555",
             font=ctk.CTkFont(size=12), anchor="w",
         )
-        self._error_label.grid(row=2, column=0, padx=24, pady=(8, 0), sticky="w")
+        self._error_label.grid(row=3, column=0, padx=24, pady=(8, 0), sticky="w")
 
         # Buttons
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.grid(row=3, column=0, padx=24, pady=20, sticky="e")
+        btn_frame.grid(row=4, column=0, padx=24, pady=20, sticky="e")
 
         ctk.CTkButton(
             btn_frame, text="Cancel", width=100,

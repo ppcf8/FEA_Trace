@@ -192,3 +192,69 @@ def make_scrollbar(parent, orient: str, command) -> ctk.CTkScrollbar:
     Creates a themed CTkScrollbar. Use instead of ttk.Scrollbar everywhere.
     """
     return ctk.CTkScrollbar(parent, orientation=orient, command=command)
+
+
+# ---------------------------------------------------------------------------
+# 5. Hover Tooltip
+# ---------------------------------------------------------------------------
+
+class Tooltip:
+    """
+    Attaches a hover tooltip to any tkinter widget.
+    The popup appears after a short delay and disappears on mouse-out.
+
+    Usage:
+        Tooltip(label_widget, "Explain what this field means.")
+    """
+
+    _DELAY_MS = 600
+
+    def __init__(self, widget: tk.Widget, text: str):
+        self._widget = widget
+        self._text   = text
+        self._job:   str | None          = None
+        self._win:   tk.Toplevel | None  = None
+
+        widget.bind("<Enter>", self._on_enter, add="+")
+        widget.bind("<Leave>", self._on_leave, add="+")
+
+    def _on_enter(self, _event) -> None:
+        self._job = self._widget.after(self._DELAY_MS, self._show)
+
+    def _on_leave(self, _event) -> None:
+        if self._job:
+            self._widget.after_cancel(self._job)
+            self._job = None
+        self._hide()
+
+    def _show(self) -> None:
+        if self._win:
+            return
+        t = tokens()
+        x = self._widget.winfo_rootx() + 10
+        y = self._widget.winfo_rooty() + self._widget.winfo_height() + 4
+        self._win = tk.Toplevel(self._widget)
+        self._win.wm_overrideredirect(True)
+        self._win.wm_geometry(f"+{x}+{y}")
+        tk.Label(
+            self._win,
+            text=self._text,
+            justify="left",
+            background=t["bg_secondary"],
+            foreground=t["fg"],
+            relief="solid",
+            borderwidth=1,
+            font=("Segoe UI", 10),
+            padx=8, pady=5,
+            wraplength=320,
+        ).pack()
+
+    def _hide(self) -> None:
+        if self._win:
+            self._win.destroy()
+            self._win = None
+
+
+def add_hint(widget: tk.Widget, text: str) -> None:
+    """Attach a hover tooltip to *widget*. Tooltip appears after ~600 ms."""
+    Tooltip(widget, text)

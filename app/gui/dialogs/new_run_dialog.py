@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import customtkinter as ctk
+from app.gui.hints import NEW_RUN_SUBTITLE
 
 
 class NewRunDialog(ctk.CTkToplevel):
@@ -36,12 +37,11 @@ class NewRunDialog(ctk.CTkToplevel):
 
         ctk.CTkLabel(
             self,
-            text=(
-                "Registering a run generates the solver deck filename.\n"
-                "Copy it from the Iteration view before executing the solver."
-            ),
+            text=NEW_RUN_SUBTITLE,
             font=ctk.CTkFont(size=12),
             justify="left",
+            anchor="w",
+            wraplength=412,
         ).grid(row=1, column=0, padx=24, pady=(0, 16), sticky="w")
 
         form = ctk.CTkFrame(self, fg_color="transparent")
