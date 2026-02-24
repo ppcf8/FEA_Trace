@@ -235,6 +235,36 @@ class FEAProject:
         v.status = new_status
         self._write()
 
+    def update_entity_metadata(self, name, project, owner_team, created_by):
+        e = self._log.entity
+        e.name       = name
+        e.project    = project
+        e.owner_team = owner_team
+        e.created_by = created_by
+        self._write()
+
+    def update_version_metadata(self, version_id, intent, notes, created_by):
+        v = self._get_version(version_id)
+        v.intent     = intent
+        v.notes      = notes
+        v.created_by = created_by
+        self._write()
+
+    def update_iteration_metadata(self, version_id, iter_id,
+                                  solver_type, analysis_types, description, created_by):
+        v = self._get_version(version_id)
+        i = self._get_iteration(v, iter_id)
+        solver_changed = (i.solver_type != solver_type)
+        i.solver_type    = solver_type
+        i.analysis_types = analysis_types
+        i.description    = description
+        i.created_by     = created_by
+        if solver_changed:
+            i.filename_base = build_filename_base(
+                self._log.entity.project, self._log.entity.id,
+                version_id, iter_id, solver_type)
+        self._write()
+
     def add_iteration(self, version_id, solver_type, analysis_types,
                       description, created_by):
         v        = self._get_version(version_id)

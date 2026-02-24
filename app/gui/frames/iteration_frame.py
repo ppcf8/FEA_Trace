@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Optional
 from PIL import Image
 
+from schema import VersionStatus
 from app.config import MODELS_FOLDER
 from app.core.models import FEAProject
 from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, SOLVER_COLORS, add_hint
@@ -25,6 +26,7 @@ from app.gui.hints import ITERATION_TOOLTIP
 
 _ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
 _IMG_COPY  = ctk.CTkImage(Image.open(_ICONS_DIR / "copy.png"), size=(18, 18))
+_IMG_EDIT  = ctk.CTkImage(Image.open(_ICONS_DIR / "edit.png"), size=(16, 16))
 
 
 # ---------------------------------------------------------------------------
@@ -140,6 +142,15 @@ class IterationFrame(ctk.CTkFrame):
         panel = ctk.CTkFrame(self)
         panel.grid(row=1, column=0, sticky="ew", padx=24, pady=16)
         panel.columnconfigure(1, weight=1)
+
+        self._edit_btn = ctk.CTkButton(
+            panel, image=_IMG_EDIT, text="Edit", compound="left",
+            width=90, height=28,
+            font=ctk.CTkFont(size=12),
+            fg_color="transparent", border_width=1,
+            command=self._on_edit_iteration,
+        )
+        self._edit_btn.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=8)
 
         # Description
         ctk.CTkLabel(
@@ -287,6 +298,9 @@ class IterationFrame(ctk.CTkFrame):
         self._meta["_created_by"].configure(text=i.created_by)
         self._meta["_created_on"].configure(text=i.created_on)
 
+        is_editable = (v.status == VersionStatus.WIP)
+        self._edit_btn.configure(state="normal" if is_editable else "disabled")
+
         self._populate_table(i)
 
     def _populate_table(self, i) -> None:
@@ -357,6 +371,30 @@ class IterationFrame(ctk.CTkFrame):
         self._window.refresh_sidebar()
         self._window.set_status(
             f"Run {run.id:02d} registered — filename: {run.name}")
+
+    def _on_edit_iteration(self) -> None:
+        if not all([self._project, self._version_id, self._iter_id]):
+            return
+        from app.gui.dialogs.edit_iteration_dialog import EditIterationDialog
+        v = self._project._get_version(self._version_id)
+        i = self._project._get_iteration(v, self._iter_id)
+        has_runs = len(i.runs) > 0
+        dlg = EditIterationDialog(self._window, i, has_runs)
+        self._window.wait_window(dlg)
+        if dlg.result is None:
+            return
+        solver_type, analysis_types, description, created_by = dlg.result
+        try:
+            self._project.update_iteration_metadata(
+                self._version_id, self._iter_id,
+                solver_type, analysis_types, description, created_by,
+            )
+        except Exception as exc:
+            self._show_error("Edit Iteration Failed", str(exc))
+            return
+        self.load(self._project, self._version_id, self._iter_id)
+        self._window.refresh_sidebar()
+        self._window.set_status(f"Iteration {self._iter_id} metadata updated.")
 
     def _open_models_folder(self) -> None:
         if not self._project:
