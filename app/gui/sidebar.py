@@ -196,8 +196,17 @@ class Sidebar(ctk.CTkFrame):
 
         e = project.entity
 
+        new_label = f"{e.project} · {e.name}".casefold()
+        siblings = self._tree.get_children("")
+        insert_index = len(siblings)
+        for idx, node in enumerate(siblings):
+            sibling_label = self._tree.item(node, "text").strip().casefold()
+            if new_label < sibling_label:
+                insert_index = idx
+                break
+
         entity_node = self._tree.insert(
-            "", "end",
+            "", insert_index,
             text=f"  {e.project} · {e.name}",
             open=True,
             tags=("tag_entity",),

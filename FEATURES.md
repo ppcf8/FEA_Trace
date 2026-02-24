@@ -187,6 +187,15 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 ---
 
+- **Remove design changes field** — Removed redundant `design_changes` field from `IterationRecord`;
+  `description` field is sufficient. Schema bumped `2.0.0 → 2.1.0`; auto-migration strips field
+  from existing YAML files. `NewIterationDialog` UI simplified (no Design Changes input box).
+  Fixed `IterationFrame` Created By/Created On alignment.
+  `schema.py`, `app/core/models.py`, `app/core/migration.py`, `app/gui/dialogs/new_iteration_dialog.py`,
+  `app/gui/frames/iteration_frame.py`, `app/gui/frames/version_frame.py` _(2026-02-24)_
+
+---
+
 ## WIP
 
 <!-- Add features currently being worked on. Format: **Feature** — description. -->
@@ -197,5 +206,3 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 <!-- Add planned or desired features not yet started. Format: **Feature** — description. -->
 - **Run input file autocheck** — always autocheck input file for a run, no matter the status. In case of production runs which uses the artifacts feature keep the current logic.
-
-- **Remove design changes field** - the iteration metadata has a description field and a design changes fiels which is redundant. Remove the design changes field and keep the description one.
