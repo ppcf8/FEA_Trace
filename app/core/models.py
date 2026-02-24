@@ -149,23 +149,29 @@ def _validate_folder_anatomy(entity_path):
     return [f"Missing required folder: {f}"
             for f in REQUIRED_FOLDERS if not (entity_path / f).is_dir()]
 
-def _check_production_artifacts(entity_path, solver_type, filename_base, run_id):
+def _run_subfolder(version_id, iter_id, run_id):
+    """Return the run subfolder name, e.g. 'V01I01_Run_01'."""
+    return f"{version_id}{iter_id}_Run_{run_id:02d}"
+
+def _check_production_artifacts(entity_path, solver_type, filename_base, run_id,
+                                version_id, iter_id):
     warnings, required = [], REQUIRED_PRODUCTION_ARTIFACTS.get(solver_type, [])
     base = f"{filename_base}_{run_id:02d}"
     for ext in required:
         if ext == SOLVER_EXTENSIONS[solver_type]:
-            target = entity_path / RUNS_FOLDER / f"Run_{run_id:02d}" / f"{base}{ext}"
+            target = entity_path / RUNS_FOLDER / _run_subfolder(version_id, iter_id, run_id) / f"{base}{ext}"
         else:
             target = entity_path / RESULTS_FOLDER / f"{base}{ext}"
         if not target.exists():
             warnings.append(f"Missing: {target.relative_to(entity_path)}")
     return warnings
 
-def _check_input_file(entity_path, solver_type, filename_base, run_id):
+def _check_input_file(entity_path, solver_type, filename_base, run_id,
+                      version_id, iter_id):
     """Check whether the solver deck (input file) exists in the run subfolder."""
     ext    = SOLVER_EXTENSIONS[solver_type]
     base   = f"{filename_base}_{run_id:02d}"
-    target = entity_path / RUNS_FOLDER / f"Run_{run_id:02d}" / f"{base}{ext}"
+    target = entity_path / RUNS_FOLDER / _run_subfolder(version_id, iter_id, run_id) / f"{base}{ext}"
     if not target.exists():
         return [f"Missing: {target.relative_to(entity_path)}"]
     return []
@@ -250,7 +256,7 @@ class FEAProject:
                         created_by=created_by, comments=comments,
                         artifacts=ArtifactRecord(input=[SOLVER_EXTENSIONS[i.solver_type]]))
         i.runs.append(run); self._write()
-        run_folder = self._path / RUNS_FOLDER / f"Run_{run_id:02d}"
+        run_folder = self._path / RUNS_FOLDER / _run_subfolder(version_id, iter_id, run_id)
         run_folder.mkdir(parents=True, exist_ok=True)
         return run
 
@@ -268,7 +274,7 @@ class FEAProject:
         if output_artifacts is not None: run.artifacts.output     = output_artifacts
         if is_production is not None:    run.artifacts.is_production = is_production
         warnings = (_check_production_artifacts(
-                        self._path, i.solver_type, i.filename_base, run_id)
+                        self._path, i.solver_type, i.filename_base, run_id, version_id, iter_id)
                     if run.artifacts.is_production else [])
         self._write(); return warnings
 
@@ -286,7 +292,7 @@ class FEAProject:
         if output_artifacts is not None: run.artifacts.output     = output_artifacts
         if is_production is not None:    run.artifacts.is_production = is_production
         warnings = (_check_production_artifacts(
-                        self._path, i.solver_type, i.filename_base, run_id)
+                        self._path, i.solver_type, i.filename_base, run_id, version_id, iter_id)
                     if run.artifacts.is_production else [])
         self._write(); return warnings
 
@@ -296,7 +302,7 @@ class FEAProject:
         run = self._get_run(i, run_id)
         run.artifacts.is_production = is_production
         warnings = (_check_production_artifacts(
-                        self._path, i.solver_type, i.filename_base, run_id)
+                        self._path, i.solver_type, i.filename_base, run_id, version_id, iter_id)
                     if is_production else [])
         self._write(); return warnings
 
