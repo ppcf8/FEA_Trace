@@ -11,7 +11,7 @@ from typing import Optional
 from PIL import Image
 
 from schema import RunStatus, RUN_STATUS_TRANSITIONS
-from app.core.models import FEAProject, _check_production_artifacts, _check_input_file
+from app.core.models import FEAProject, _check_production_artifacts, _check_input_file, _run_subfolder
 from app.config import RUNS_FOLDER
 from app.gui.theme import add_hint
 from app.gui.hints import RUN_TOOLTIP
@@ -265,11 +265,13 @@ class RunFrame(ctk.CTkFrame):
         """Return (warnings, panel_title) appropriate for the current run state."""
         if is_production:
             return (
-                _check_production_artifacts(self._project.path, i.solver_type, i.filename_base, run_id),
+                _check_production_artifacts(self._project.path, i.solver_type, i.filename_base,
+                                            run_id, self._version_id, self._iter_id),
                 "⚠   Production Artifact Warnings",
             )
         return (
-            _check_input_file(self._project.path, i.solver_type, i.filename_base, run_id),
+            _check_input_file(self._project.path, i.solver_type, i.filename_base,
+                              run_id, self._version_id, self._iter_id),
             "⚠   Input File Not Found",
         )
 
@@ -314,7 +316,7 @@ class RunFrame(ctk.CTkFrame):
         )
 
         self._filename_var.set(run.name)
-        run_folder = project.path / RUNS_FOLDER / f"Run_{run_id:02d}"
+        run_folder = project.path / RUNS_FOLDER / _run_subfolder(version_id, iter_id, run_id)
         self._run_folder_var.set(str(run_folder))
         self._meta["_date"].configure(text=run.date)
         self._meta["_created_by"].configure(text=run.created_by)
