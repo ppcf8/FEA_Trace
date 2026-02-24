@@ -16,9 +16,10 @@ from app.config import RUNS_FOLDER
 from app.gui.theme import add_hint
 from app.gui.hints import RUN_TOOLTIP
 
-_ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
+_ICONS_DIR     = Path(__file__).parent.parent.parent / "assets" / "icons"
 _IMG_COPY      = ctk.CTkImage(Image.open(_ICONS_DIR / "copy.png"),           size=(18, 18))
 _IMG_COPY_PATH = ctk.CTkImage(Image.open(_ICONS_DIR / "copy_with_path.png"), size=(18, 18))
+_IMG_EDIT      = ctk.CTkImage(Image.open(_ICONS_DIR / "edit.png"),           size=(16, 16))
 
 
 _STATUS_BADGE = {
@@ -47,6 +48,7 @@ class RunFrame(ctk.CTkFrame):
         self._version_id: Optional[str]        = None
         self._iter_id:    Optional[str]        = None
         self._run_id:     Optional[int]        = None
+        self._original_comments: str           = ""
         self._build()
 
     # ------------------------------------------------------------------
@@ -147,19 +149,45 @@ class RunFrame(ctk.CTkFrame):
             panel, text="Comments",
             font=ctk.CTkFont(size=12, weight="bold"),
             anchor="nw", width=100,
-        ).grid(row=2, column=0, padx=(16, 4), pady=(6, 10), sticky="nw")
+        ).grid(row=2, column=0, padx=(16, 4), pady=(6, 12), sticky="nw")
 
         self._comments_box = ctk.CTkTextbox(
-            panel, height=60, wrap="word", font=ctk.CTkFont(size=12))
+            panel, height=60, wrap="word", font=ctk.CTkFont(size=12),
+            state="disabled")
         self._comments_box.grid(row=2, column=1, columnspan=3,
-                                padx=(0, 16), pady=(6, 10), sticky="ew")
+                                padx=(0, 16), pady=(6, 12), sticky="ew")
 
-        ctk.CTkButton(
-            panel, text="Save Comments",
-            width=130, height=28,
+        # Edit / Save / Cancel button group — placed at top-right of panel
+        btn_frame = ctk.CTkFrame(panel, fg_color="transparent")
+        btn_frame.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=8)
+
+        self._edit_btn = ctk.CTkButton(
+            btn_frame, image=_IMG_EDIT, text="Edit", compound="left",
+            width=90, height=28,
+            font=ctk.CTkFont(size=12),
+            fg_color="transparent", border_width=1,
+            command=self._enter_edit_mode,
+        )
+        self._edit_btn.grid(row=0, column=0)
+
+        self._save_btn = ctk.CTkButton(
+            btn_frame, text="Save",
+            width=80, height=28,
             font=ctk.CTkFont(size=12),
             command=self._on_save_comments,
-        ).grid(row=3, column=1, padx=(0, 16), pady=(0, 10), sticky="w")
+        )
+        self._save_btn.grid(row=0, column=0)
+        self._save_btn.grid_remove()
+
+        self._cancel_btn = ctk.CTkButton(
+            btn_frame, text="Cancel",
+            width=80, height=28,
+            font=ctk.CTkFont(size=12),
+            fg_color="transparent", border_width=1,
+            command=self._on_cancel_edit,
+        )
+        self._cancel_btn.grid(row=0, column=1, padx=(4, 0))
+        self._cancel_btn.grid_remove()
 
     def _build_artifact_panel(self) -> None:
         panel = ctk.CTkFrame(self)
@@ -321,9 +349,17 @@ class RunFrame(ctk.CTkFrame):
         self._meta["_date"].configure(text=run.date)
         self._meta["_created_by"].configure(text=run.created_by)
 
+        # Reset to view mode before repopulating
+        self._save_btn.grid_remove()
+        self._cancel_btn.grid_remove()
+        self._edit_btn.grid()
+        self._comments_box.configure(state="normal")
         self._comments_box.delete("1.0", "end")
         if run.comments:
             self._comments_box.insert("1.0", run.comments)
+        self._comments_box.configure(state="disabled")
+        self._edit_btn.configure(
+            state="disabled" if run.artifacts.is_production else "normal")
 
         self._input_label.configure(
             text="  ".join(run.artifacts.input) if run.artifacts.input else "—")
@@ -394,6 +430,23 @@ class RunFrame(ctk.CTkFrame):
             else:
                 self._window.set_status(f"Folder not found: {path}")
 
+    def _enter_edit_mode(self) -> None:
+        self._original_comments = self._comments_box.get("1.0", "end").strip()
+        self._comments_box.configure(state="normal")
+        self._edit_btn.grid_remove()
+        self._save_btn.grid()
+        self._cancel_btn.grid()
+
+    def _on_cancel_edit(self) -> None:
+        self._comments_box.configure(state="normal")
+        self._comments_box.delete("1.0", "end")
+        if self._original_comments:
+            self._comments_box.insert("1.0", self._original_comments)
+        self._comments_box.configure(state="disabled")
+        self._save_btn.grid_remove()
+        self._cancel_btn.grid_remove()
+        self._edit_btn.grid()
+
     def _on_save_comments(self) -> None:
         if not self._project or self._run_id is None:
             return
@@ -411,6 +464,12 @@ class RunFrame(ctk.CTkFrame):
             self._window.set_status("Comments saved.")
         except Exception as exc:
             self._show_error("Save Failed", str(exc))
+            return
+        # Return to view mode
+        self._comments_box.configure(state="disabled")
+        self._save_btn.grid_remove()
+        self._cancel_btn.grid_remove()
+        self._edit_btn.grid()
 
     def _on_add_output(self) -> None:
         ext = self._output_entry_var.get().strip()
@@ -456,6 +515,11 @@ class RunFrame(ctk.CTkFrame):
         except Exception as exc:
             self._show_error("Save Failed", str(exc))
             return
+
+        # If locking, cancel any active edit before disabling the button
+        if is_prod:
+            self._on_cancel_edit()
+        self._edit_btn.configure(state="disabled" if is_prod else "normal")
 
         self._window.set_status(
             f"Run marked as {'production' if is_prod else 'standard'}.")

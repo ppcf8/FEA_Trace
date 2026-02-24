@@ -11,9 +11,14 @@ import customtkinter as ctk
 from typing import Optional
 from pathlib import Path
 
+from PIL import Image
+
 from schema import VersionStatus, REQUIRED_FOLDERS
 from app.core.models import FEAProject
 from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, tokens
+
+_ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
+_IMG_EDIT  = ctk.CTkImage(Image.open(_ICONS_DIR / "edit.png"), size=(16, 16))
 
 
 _VERSION_STATUS_TEXT = {
@@ -116,6 +121,15 @@ class EntityFrame(ctk.CTkFrame):
                 val_label.grid(row=row_i, column=col_offset * 2 + 1,
                                padx=(0, 24), pady=6, sticky="w")
                 self._meta[key] = val_label
+
+        self._edit_btn = ctk.CTkButton(
+            panel, image=_IMG_EDIT, text="Edit", compound="left",
+            width=90, height=28,
+            font=ctk.CTkFont(size=12),
+            fg_color="transparent", border_width=1,
+            command=self._on_edit_entity,
+        )
+        self._edit_btn.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=8)
 
         ctk.CTkLabel(
             panel, text="Folder Health",
@@ -245,6 +259,24 @@ class EntityFrame(ctk.CTkFrame):
     def _on_open_folder(self) -> None:
         if self._project:
             _open_folder(self._project.path)
+
+    def _on_edit_entity(self) -> None:
+        if self._project is None:
+            return
+        from app.gui.dialogs.edit_entity_dialog import EditEntityDialog
+        dlg = EditEntityDialog(self._window, self._project.entity)
+        self._window.wait_window(dlg)
+        if dlg.result is None:
+            return
+        name, project, owner_team, created_by = dlg.result
+        try:
+            self._project.update_entity_metadata(name, project, owner_team, created_by)
+        except Exception as exc:
+            self._show_error("Edit Entity Failed", str(exc))
+            return
+        self.load(self._project)
+        self._window.refresh_sidebar()
+        self._window.set_status("Entity metadata updated.")
 
     def _on_new_version(self) -> None:
         if self._project is None:

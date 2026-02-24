@@ -5,12 +5,17 @@ from __future__ import annotations
 
 import tkinter.ttk as ttk
 import customtkinter as ctk
+from pathlib import Path
 from typing import Optional
+from PIL import Image
 
 from schema import VersionStatus, VERSION_STATUS_TRANSITIONS
 from app.core.models import FEAProject
 from app.gui.theme import apply_table_style, make_scrollbar, add_hint
 from app.gui.hints import VERSION_TOOLTIP
+
+_ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
+_IMG_EDIT  = ctk.CTkImage(Image.open(_ICONS_DIR / "edit.png"), size=(16, 16))
 
 
 _STATUS_BADGE = {
@@ -221,6 +226,16 @@ class VersionFrame(ctk.CTkFrame):
         for w in self._transition_frame.winfo_children():
             w.destroy()
 
+        ctk.CTkButton(
+            self._transition_frame,
+            image=_IMG_EDIT, text="Edit", compound="left",
+            width=90, height=28,
+            font=ctk.CTkFont(size=12),
+            fg_color="transparent", border_width=1,
+            state="normal" if current == VersionStatus.WIP else "disabled",
+            command=self._on_edit_version,
+        ).pack(anchor="e", pady=(0, 8))
+
         allowed = VERSION_STATUS_TRANSITIONS.get(current, set())
         if not allowed:
             ctk.CTkLabel(
@@ -300,6 +315,24 @@ class VersionFrame(ctk.CTkFrame):
         self._window.refresh_sidebar()
         self._window.set_status(f"Version {self._version_id} → {target.value}")
         self.load(self._project, self._version_id)
+
+    def _on_edit_version(self) -> None:
+        if not self._project or not self._version_id:
+            return
+        from app.gui.dialogs.edit_version_dialog import EditVersionDialog
+        v = self._project._get_version(self._version_id)
+        dlg = EditVersionDialog(self._window, v)
+        self._window.wait_window(dlg)
+        if dlg.result is None:
+            return
+        intent, notes, created_by = dlg.result
+        try:
+            self._project.update_version_metadata(self._version_id, intent, notes, created_by)
+        except Exception as exc:
+            self._show_error("Edit Version Failed", str(exc))
+            return
+        self.load(self._project, self._version_id)
+        self._window.set_status(f"Version {self._version_id} metadata updated.")
 
     def _on_new_iteration(self) -> None:
         if not self._project or not self._version_id:
