@@ -17,7 +17,8 @@ from typing import Optional
 from PIL import Image
 
 from app.core.models import FEAProject
-from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, SOLVER_COLORS
+from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, SOLVER_COLORS, add_hint
+from app.gui.hints import ITERATION_TOOLTIP
 
 _ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
 _IMG_COPY  = ctk.CTkImage(Image.open(_ICONS_DIR / "copy.png"), size=(18, 18))
@@ -86,6 +87,7 @@ class IterationFrame(ctk.CTkFrame):
             anchor="w",
         )
         self._title_label.grid(row=0, column=0, sticky="w")
+        add_hint(self._title_label, ITERATION_TOOLTIP)
 
         self._solver_label = ctk.CTkLabel(
             title_row, text="",

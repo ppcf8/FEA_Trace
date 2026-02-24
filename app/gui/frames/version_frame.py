@@ -9,7 +9,8 @@ from typing import Optional
 
 from schema import VersionStatus, VERSION_STATUS_TRANSITIONS
 from app.core.models import FEAProject
-from app.gui.theme import apply_table_style, make_scrollbar
+from app.gui.theme import apply_table_style, make_scrollbar, add_hint
+from app.gui.hints import VERSION_TOOLTIP
 
 
 _STATUS_BADGE = {
@@ -68,6 +69,7 @@ class VersionFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=22, weight="bold"), anchor="w",
         )
         self._title_label.grid(row=0, column=0, sticky="w")
+        add_hint(self._title_label, VERSION_TOOLTIP)
 
         self._status_badge = ctk.CTkLabel(
             hdr, text="", font=ctk.CTkFont(size=13), anchor="e",

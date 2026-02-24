@@ -17,7 +17,8 @@ from tkinter import filedialog
 from typing import Optional
 
 from schema import SCHEMA_VERSION
-from app.config import APP_TITLE, APP_VERSION, WINDOW_SIZE, WINDOW_MIN_W, WINDOW_MIN_H, LOG_FILENAME
+from app.config import (APP_TITLE, APP_VERSION, WINDOW_SIZE, WINDOW_MIN_W, WINDOW_MIN_H,
+                        LOG_FILENAME, DEVELOPER_NAME, DEVELOPER_EMAIL)
 from app.core.models import FEAProject
 from app.core.session import SessionManager, DEFAULT_SESSION_DIR
 from app.gui.sidebar import Sidebar
@@ -100,6 +101,10 @@ class MainWindow(ctk.CTk):
         appearance_sub.add_option("System",    command=lambda: ctk.set_appearance_mode("system"))
         appearance_sub.add_option("Light",     command=lambda: ctk.set_appearance_mode("light"))
         appearance_sub.add_option("Dark",      command=lambda: ctk.set_appearance_mode("dark"))
+
+        help_btn = menu.add_cascade("  Help  ")
+        help_dd = CustomDropdownMenu(widget=help_btn)
+        help_dd.add_option("About", command=self._on_about)
 
     def _build_sidebar(self) -> None:
         self._sidebar = Sidebar(
@@ -446,6 +451,47 @@ class MainWindow(ctk.CTk):
                 if self._session.is_dirty:   # save-as dialog was cancelled
                     return
         self.destroy()
+
+    def _on_about(self) -> None:
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("About FEA Trace")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+
+        # Centre over main window
+        self.update_idletasks()
+        w, h = 340, 220
+        x = self.winfo_x() + (self.winfo_width()  - w) // 2
+        y = self.winfo_y() + (self.winfo_height() - h) // 2
+        dlg.geometry(f"{w}x{h}+{x}+{y}")
+
+        dlg.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(dlg, text=APP_TITLE,
+                     font=ctk.CTkFont(size=20, weight="bold"),
+                     anchor="center",
+                     ).grid(row=0, column=0, padx=24, pady=(24, 8), sticky="ew")
+
+        ctk.CTkLabel(dlg, text=f"App version:     {APP_VERSION}",
+                     font=ctk.CTkFont(size=13), anchor="w",
+                     ).grid(row=1, column=0, padx=24, pady=2, sticky="ew")
+
+        ctk.CTkLabel(dlg, text=f"Schema version:  {SCHEMA_VERSION}",
+                     font=ctk.CTkFont(size=13), anchor="w",
+                     ).grid(row=2, column=0, padx=24, pady=2, sticky="ew")
+
+        ctk.CTkFrame(dlg, height=1, fg_color=["gray75", "gray35"],
+                     ).grid(row=3, column=0, padx=24, pady=10, sticky="ew")
+
+        ctk.CTkLabel(dlg, text=DEVELOPER_NAME,
+                     font=ctk.CTkFont(size=13), anchor="w",
+                     ).grid(row=4, column=0, padx=24, pady=2, sticky="ew")
+
+        ctk.CTkLabel(dlg, text=DEVELOPER_EMAIL,
+                     font=ctk.CTkFont(size=13), anchor="w",
+                     text_color=["#1a6fc4", "#5aabf5"],
+                     ).grid(row=5, column=0, padx=24, pady=2, sticky="ew")
+
 
     def _show_error(self, title: str, message: str) -> None:
         from tkinter import messagebox
