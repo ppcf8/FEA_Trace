@@ -95,7 +95,7 @@ class VersionFrame(ctk.CTkFrame):
             anchor="nw", justify="left", wraplength=600,
         )
         self._intent_label.grid(row=0, column=1, columnspan=3,
-                                padx=(0, 16), pady=(12, 6), sticky="w")
+                                padx=(0, 16), pady=(12, 6), sticky="nw")
 
         fields = [("Created By", "_created_by"), ("Created On", "_created_on")]
         self._meta: dict[str, ctk.CTkLabel] = {}
