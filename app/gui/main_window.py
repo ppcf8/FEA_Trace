@@ -56,6 +56,7 @@ class MainWindow(ctk.CTk):
         # Active projects — keyed by str(entity_path)
         self._projects:       dict[str, FEAProject] = {}
         self._active_path:    Optional[str]          = None
+        self._current_node:   Optional[tuple]        = None
         self._session:        SessionManager         = SessionManager()
         self._frames:         dict[str, ctk.CTkFrame] = {}
 
@@ -168,6 +169,8 @@ class MainWindow(ctk.CTk):
             self._active_path = entity_path
             self._frames["entity"].load(proj)
             self._show_frame("entity")
+            self._current_node = ("entity", entity_path)
+            self._sidebar.select_node("entity", entity_path)
 
     def show_version(self, entity_path: str, version_id: str) -> None:
         proj = self._projects.get(entity_path)
@@ -175,6 +178,8 @@ class MainWindow(ctk.CTk):
             self._active_path = entity_path
             self._frames["version"].load(proj, version_id)
             self._show_frame("version")
+            self._current_node = ("version", entity_path, version_id)
+            self._sidebar.select_node("version", entity_path, version_id)
 
     def show_iteration(self, entity_path: str,
                        version_id: str, iter_id: str) -> None:
@@ -183,6 +188,8 @@ class MainWindow(ctk.CTk):
             self._active_path = entity_path
             self._frames["iteration"].load(proj, version_id, iter_id)
             self._show_frame("iteration")
+            self._current_node = ("iteration", entity_path, version_id, iter_id)
+            self._sidebar.select_node("iteration", entity_path, version_id, iter_id)
 
     def show_run(self, entity_path: str,
                  version_id: str, iter_id: str, run_id: int) -> None:
@@ -191,6 +198,8 @@ class MainWindow(ctk.CTk):
             self._active_path = entity_path
             self._frames["run"].load(proj, version_id, iter_id, run_id)
             self._show_frame("run")
+            self._current_node = ("run", entity_path, version_id, iter_id, run_id)
+            self._sidebar.select_node("run", entity_path, version_id, iter_id, run_id)
 
     # ------------------------------------------------------------------
     # Sidebar routing
@@ -209,9 +218,12 @@ class MainWindow(ctk.CTk):
                 self.show_run(entity_path, v_id, i_id, int(run_id))
 
     def refresh_sidebar(self) -> None:
-        """Refreshes the active entity's subtree in the sidebar."""
+        """Refreshes the active entity's subtree in the sidebar, then
+        restores the previous tree selection."""
         if self._active_path and self._active_path in self._projects:
             self._sidebar.refresh_entity(self._projects[self._active_path])
+            if self._current_node:
+                self._sidebar.select_node(*self._current_node)
 
     # ------------------------------------------------------------------
     # Entity open / create / close

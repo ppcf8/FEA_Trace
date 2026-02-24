@@ -45,6 +45,14 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/gui/frames/run_frame.py`, `app/gui/dialogs/new_iteration_dialog.py`,
   `app/gui/frames/entity_frame.py` _(2026-02-23)_
 
+- **Navigator tree sync** — Sidebar tree highlight automatically follows the content
+  panel: every `show_entity / show_version / show_iteration / show_run` call sets
+  `_current_node` and calls `Sidebar.select_node()`, which programmatically selects
+  and scrolls to the matching node without re-triggering the selection callback
+  (guarded by `_suppress_select`). `refresh_sidebar` restores the selection after
+  rebuilding the subtree.
+  `app/gui/sidebar.py`, `app/gui/main_window.py` _(2026-02-24)_
+
 - **Sidebar expand / collapse** — `⊟` / `⊞` buttons in the NAVIGATOR header collapse
   or expand the entire tree. Right-click anywhere on the sidebar shows a themed context
   menu: on an entity node → **Expand / Collapse** (that entity) + **Close Entity**;
@@ -206,5 +214,3 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 <!-- Add planned or desired features not yet started. Format: **Feature** — description. -->
 - **Run input file autocheck** — always autocheck input file for a run, no matter the status. In case of production runs which uses the artifacts feature keep the current logic.
-
-- Sync navigator tree highlight with main frame tab.
