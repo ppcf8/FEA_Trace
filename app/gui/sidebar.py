@@ -151,6 +151,8 @@ class Sidebar(ctk.CTkFrame):
         self._tree.bind("<<TreeviewSelect>>", self._on_tree_select)
         self._tree.bind("<Button-3>",         self._on_right_click)
 
+        self._suppress_select: bool = False
+
         apply_sidebar_style()
         self._configure_tags()
         ctk.AppearanceModeTracker.add(self._on_appearance_change)
@@ -270,7 +272,27 @@ class Sidebar(ctk.CTkFrame):
     # Selection
     # ------------------------------------------------------------------
 
+    def select_node(self, node_type: str, entity_path: str, *ids) -> None:
+        """Programmatically select and scroll to the tree node matching the
+        given payload, without triggering the selection callback.
+
+        The flag is reset via after_idle so it stays True until after the
+        queued <<TreeviewSelect>> event has been processed by the event loop.
+        """
+        target = (node_type, entity_path, *ids)
+        for node_id, payload in self._node_map.items():
+            if payload == target:
+                self._suppress_select = True
+                self._tree.selection_set(node_id)
+                self._tree.see(node_id)
+                self._tree.after_idle(
+                    lambda: setattr(self, '_suppress_select', False)
+                )
+                return
+
     def _on_tree_select(self, _event) -> None:
+        if self._suppress_select:
+            return
         sel = self._tree.selection()
         if not sel:
             return
