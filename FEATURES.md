@@ -45,6 +45,13 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/gui/frames/run_frame.py`, `app/gui/dialogs/new_iteration_dialog.py`,
   `app/gui/frames/entity_frame.py` _(2026-02-23)_
 
+- **Sidebar expand / collapse** — `⊟` / `⊞` buttons in the NAVIGATOR header collapse
+  or expand the entire tree. Right-click anywhere on the sidebar shows a themed context
+  menu: on an entity node → **Expand / Collapse** (that entity) + **Close Entity**;
+  on empty space or a child node → **Expand All / Collapse All** (global). Menu is
+  styled with `tokens()` colours to match the current light/dark theme.
+  `app/gui/sidebar.py` _(2026-02-24)_
+
 - **Sidebar navigation tree** — Hierarchical tree: entity → version → iteration → run.
   Right-click on entity node → "Close Entity". Tag-based colour coding for
   WIP / PRODUCTION / DEPRECATED / run statuses.
@@ -171,4 +178,12 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Not Implemented
 
 <!-- Add planned or desired features not yet started. Format: **Feature** — description. -->
+- **Help Menu** — help dropdown on the file menu toolbar with the About info of the app version, schema and developer contact (Pedro Ferreira pedro.cferreira@ceiia.com). Place the developer contact also on the config file.
 
+- **Hints for entity attributes** — add hints for each entity attribute on the respective tab (version, iteration, run) so the user can easily reacall what each stands for. It doesn't need to be displayed at all times, it could be a mouse hover.
+
+- **Run input file autocheck** — always autocheck input file for a run, no matter the status. In case of production runs which uses the artifacts feature keep the current logic.
+
+- **Top Left note status on version tab** — for the version the top left note status style should be like the one on the run tab.
+
+- **Remove design changes field** - the iteration metadata has a description field and a design changes fiels which is redundant. Remove the design changes field and keep the description one.

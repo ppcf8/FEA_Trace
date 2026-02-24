@@ -25,6 +25,7 @@ Each entity is persisted as a `version_log.yaml` file in its own folder. Multipl
 - **File locking** — concurrent write protection via `.lock` files (stale locks auto-cleared after 30 s)
 - **Run folder auto-creation** — `03_Runs/Run_##/` subfolder created automatically when a new run is added
 - **Run panel clipboard** — copy solver deck filename or full path to clipboard; open run folder in Explorer
+- **Sidebar expand / collapse** — `⊟` / `⊞` header buttons collapse or expand the full tree; right-click anywhere for a themed context menu (per-entity or global)
 - **Appearance** — System / Light / Dark theme switching via Settings menu
 
 ## Requirements
