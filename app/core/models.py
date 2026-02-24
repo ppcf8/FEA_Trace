@@ -79,7 +79,6 @@ def _deserialise_iteration(raw):
         created_by=raw["created_by"], created_on=raw["created_on"],
         solver_type=SolverType(raw.get("solver_type", "IMPLICIT")),
         analysis_types=raw.get("analysis_types", []),
-        design_changes=raw.get("design_changes",[]),
         runs=[_deserialise_run(r) for r in raw.get("runs",[])])
 
 def _deserialise_version(raw):
@@ -113,7 +112,7 @@ def _serialise_log(log):
     def iter_d(i): return {"id":i.id,"description":i.description,
         "filename_base":i.filename_base,"created_by":i.created_by,"created_on":i.created_on,
         "solver_type":i.solver_type.value,"analysis_types":i.analysis_types,
-        "design_changes":i.design_changes,"runs":[run_d(r) for r in i.runs]}
+        "runs":[run_d(r) for r in i.runs]}
     def ver_d(v): return {"id":v.id,"status":v.status.value,"intent":v.intent,
         "created_by":v.created_by,"created_on":v.created_on,"notes":v.notes,
         "iterations":[iter_d(i) for i in v.iterations]}
@@ -220,7 +219,7 @@ class FEAProject:
         self._write()
 
     def add_iteration(self, version_id, solver_type, analysis_types,
-                      description, created_by, design_changes=None):
+                      description, created_by):
         v        = self._get_version(version_id)
         existing = [i.id for i in v.iterations]
         iter_id  = next_iteration_id(existing)
@@ -228,8 +227,7 @@ class FEAProject:
                                        version_id, iter_id, solver_type)
         i = IterationRecord(id=iter_id, description=description, filename_base=fname,
                             created_by=created_by, created_on=_now(),
-                            solver_type=solver_type, analysis_types=analysis_types,
-                            design_changes=design_changes or [])
+                            solver_type=solver_type, analysis_types=analysis_types)
         v.iterations.append(i); self._write(); return i
 
     def add_run(self, version_id, iter_id, created_by, comments=""):

@@ -114,3 +114,23 @@ MIGRATIONS["1.0.0"] = (
     "Representation level removed.",
     True,
 )
+
+
+# ---------------------------------------------------------------------------
+# Migration: 2.0.0 → 2.1.0
+# Remove design_changes field from iterations (redundant with description).
+# ---------------------------------------------------------------------------
+
+def _migrate_2_0_0(raw: dict, migrated_by: str) -> dict:
+    for ver in raw.get("versions", []):
+        for itr in ver.get("iterations", []):
+            itr.pop("design_changes", None)
+    raw["schema_version"] = "2.1.0"
+    return raw
+
+
+MIGRATIONS["2.0.0"] = (
+    _migrate_2_0_0,
+    "Remove design_changes field from iterations (redundant with description).",
+    False,
+)

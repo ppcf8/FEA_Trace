@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Optional
 import re
 
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.1.0"
 
 class SolverType(str, Enum):
     IMPLICIT = "IMPLICIT"
@@ -112,7 +112,6 @@ class IterationRecord:
     created_on:     str
     solver_type:    SolverType = SolverType.IMPLICIT
     analysis_types: list[str] = field(default_factory=list)
-    design_changes: list[str] = field(default_factory=list)
     runs:           list[RunRecord] = field(default_factory=list)
     MANDATORY = {"id", "description", "filename_base", "created_by", "created_on",
                  "solver_type", "analysis_types"}

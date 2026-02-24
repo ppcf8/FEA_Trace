@@ -14,8 +14,7 @@ from schema import SolverType
 class NewIterationDialog(ctk.CTkToplevel):
     """
     result: (solver_type: SolverType, analysis_types: list[str],
-             description: str, design_changes: list[str],
-             created_by: str) | None
+             description: str, created_by: str) | None
     """
 
     _ANALYSIS_OPTIONS = [
@@ -27,7 +26,7 @@ class NewIterationDialog(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("New Iteration")
-        self.geometry("540x660")
+        self.geometry("540x560")
         self.resizable(False, False)
         self.grab_set()
 
@@ -101,30 +100,15 @@ class NewIterationDialog(ctk.CTkToplevel):
         self._desc_box = ctk.CTkTextbox(form, height=60, wrap="word")
         self._desc_box.grid(row=2, column=1, pady=(10, 6), sticky="ew")
 
-        # Design changes
-        ctk.CTkLabel(
-            form, text="Design Changes",
-            font=ctk.CTkFont(size=12), anchor="nw",
-        ).grid(row=3, column=0, padx=(0, 12), pady=(8, 6), sticky="nw")
-
-        self._changes_box = ctk.CTkTextbox(form, height=60, wrap="word")
-        self._changes_box.grid(row=3, column=1, pady=(8, 0), sticky="ew")
-
-        ctk.CTkLabel(
-            form, text="One change per line.",
-            font=ctk.CTkFont(size=11),
-            text_color="gray", anchor="w",
-        ).grid(row=4, column=1, sticky="w", pady=(2, 6))
-
         # Created By
         ctk.CTkLabel(
             form, text="Created By *",
             font=ctk.CTkFont(size=12), anchor="w",
-        ).grid(row=5, column=0, padx=(0, 12), pady=6, sticky="w")
+        ).grid(row=3, column=0, padx=(0, 12), pady=6, sticky="w")
 
         self._created_by_var = ctk.StringVar()
         ctk.CTkEntry(form, textvariable=self._created_by_var,
-                     width=200).grid(row=5, column=1, pady=6, sticky="w")
+                     width=200).grid(row=3, column=1, pady=6, sticky="w")
 
         # Error
         self._error_label = ctk.CTkLabel(
@@ -152,7 +136,6 @@ class NewIterationDialog(ctk.CTkToplevel):
         solver_str   = self._solver_var.get()
         analysis     = [k for k, v in self._analysis_vars.items() if v.get()]
         description  = self._desc_box.get("1.0", "end").strip()
-        changes_raw  = self._changes_box.get("1.0", "end").strip()
         created_by   = self._created_by_var.get().strip()
 
         if not analysis:
@@ -166,6 +149,5 @@ class NewIterationDialog(ctk.CTkToplevel):
             self._error_label.configure(text="Created By is required.")
             return
 
-        changes = [c.strip() for c in changes_raw.splitlines() if c.strip()]
-        self.result = (SolverType(solver_str), analysis, description, changes, created_by)
+        self.result = (SolverType(solver_str), analysis, description, created_by)
         self.destroy()
