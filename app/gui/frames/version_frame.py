@@ -3,6 +3,7 @@ frames/version_frame.py — Version Detail View
 """
 from __future__ import annotations
 
+import tkinter as tk
 import tkinter.ttk as ttk
 import customtkinter as ctk
 from pathlib import Path
@@ -45,9 +46,13 @@ class VersionFrame(ctk.CTkFrame):
 
     def __init__(self, master, window):
         super().__init__(master, corner_radius=0, fg_color="transparent")
-        self._window      = window
-        self._project:    Optional[FEAProject] = None
-        self._version_id: Optional[str]        = None
+        self._window       = window
+        self._project:     Optional[FEAProject] = None
+        self._version_id:  Optional[str]        = None
+        self._all_rows:    list[dict]    = []
+        self._sort_col:    str | None    = None
+        self._sort_reverse: bool         = False
+        self._col_filters: dict[str, set[str]] = {}
         self._build()
 
     # ------------------------------------------------------------------
@@ -165,8 +170,12 @@ class VersionFrame(ctk.CTkFrame):
             "created_by":     ("Created By",  "w"),
             "created_on":     ("Created On",  "w"),
         }
+        self._headings = headings
+        self._col_order = tuple(_COL_WEIGHTS.keys())
+
         for col, (heading, anchor) in headings.items():
-            self._table.heading(col, text=heading, anchor=anchor)
+            self._table.heading(col, text=heading, anchor=anchor,
+                                command=lambda c=col: self._on_sort(c))
             self._table.column(col, width=60, anchor=anchor, stretch=False)
 
         vsb = make_scrollbar(section, "vertical",   self._table.yview)
@@ -179,6 +188,7 @@ class VersionFrame(ctk.CTkFrame):
 
         self._section = section
         self._table.bind("<<TreeviewSelect>>", self._on_iter_select)
+        self._table.bind("<Button-3>", self._on_heading_right_click)
         section.bind("<Configure>", self._resize_columns)
         apply_table_style("Version.Treeview")
         ctk.AppearanceModeTracker.add(self._on_appearance_change)
@@ -220,6 +230,12 @@ class VersionFrame(ctk.CTkFrame):
         self._notes_label.configure(text=notes_text)
 
         self._populate_transition_buttons(v.status)
+        self._all_rows     = []
+        self._sort_col     = None
+        self._sort_reverse = False
+        self._col_filters  = {}
+        for col in self._col_order:
+            self._update_heading(col)
         self._populate_table(v)
 
     def _populate_transition_buttons(self, current: VersionStatus) -> None:
@@ -267,19 +283,126 @@ class VersionFrame(ctk.CTkFrame):
             ctk.CTkButton(self._transition_frame, **kwargs).pack(anchor="e", pady=2)
 
     def _populate_table(self, v) -> None:
-        for row in self._table.get_children():
-            self._table.delete(row)
-
+        self._all_rows = []
         for i in v.iterations:
             types  = ", ".join(i.analysis_types)
             desc   = i.description.strip().replace("\n", " ")
             if len(desc) > 55:
                 desc = desc[:52] + "…"
             solver = _SOLVER_BADGE.get(i.solver_type.value, i.solver_type.value)
-            self._table.insert("", "end", iid=i.id, values=(
-                i.id, solver, types, desc,
-                len(i.runs), i.created_by, i.created_on,
-            ))
+            self._all_rows.append({
+                "iid":    i.id,
+                "values": (i.id, solver, types, desc,
+                           len(i.runs), i.created_by, i.created_on),
+                "tags":   (),
+            })
+        self._refresh_table()
+
+    def _refresh_table(self) -> None:
+        rows = self._all_rows
+        for col, allowed in self._col_filters.items():
+            if allowed:
+                idx  = self._col_order.index(col)
+                rows = [r for r in rows if str(r["values"][idx]) in allowed]
+        if self._sort_col is not None:
+            idx  = self._col_order.index(self._sort_col)
+            rows = sorted(rows,
+                          key=lambda r: str(r["values"][idx]).lower(),
+                          reverse=self._sort_reverse)
+        for row in self._table.get_children():
+            self._table.delete(row)
+        for r in rows:
+            self._table.insert("", "end", iid=r["iid"],
+                               tags=r["tags"], values=r["values"])
+
+    def _on_sort(self, col: str) -> None:
+        if self._sort_col == col:
+            self._sort_reverse = not self._sort_reverse
+        else:
+            self._sort_col, self._sort_reverse = col, False
+        for c in self._col_order:
+            self._update_heading(c)
+        self._refresh_table()
+
+    def _on_heading_right_click(self, event) -> None:
+        if self._table.identify_region(event.x, event.y) != "heading":
+            return
+        col_id = self._table.identify_column(event.x)
+        if not col_id or col_id == "#0":
+            return
+        col_name = self._col_order[int(col_id[1:]) - 1]
+        self._open_filter_popup(col_name, event.x_root, event.y_root)
+
+    def _update_heading(self, col: str) -> None:
+        lbl, _     = self._headings[col]
+        sort_ind   = (" ▼" if self._sort_reverse else " ▲") if self._sort_col == col else ""
+        filter_ind = " ⊿" if self._col_filters.get(col) else ""
+        self._table.heading(col, text=f"{lbl}{sort_ind}{filter_ind}")
+
+    def _open_filter_popup(self, col: str, x_root: int = 0, y_root: int = 0) -> None:
+        col_idx     = self._col_order.index(col)
+        unique_vals = sorted(
+            {str(r["values"][col_idx]) for r in self._all_rows},
+            key=str.lower,
+        )
+        if not unique_vals:
+            return
+        current = self._col_filters.get(col, set())
+
+        popup = ctk.CTkToplevel(self._window)
+        popup.title(f"Filter: {self._headings[col][0]}")
+        popup.resizable(False, False)
+        popup.grab_set()
+        popup.columnconfigure(0, weight=1)
+        popup.rowconfigure(1, weight=1)
+
+        h = min(40 * len(unique_vals) + 130, 400)
+        popup.geometry(f"220x{h}+{x_root}+{y_root}")
+
+        quick = ctk.CTkFrame(popup, fg_color="transparent")
+        quick.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 2))
+        check_vars: dict[str, tk.IntVar] = {}
+
+        ctk.CTkButton(quick, text="All", width=80, height=26,
+                      font=ctk.CTkFont(size=11),
+                      command=lambda: [v.set(1) for v in check_vars.values()]
+                      ).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(quick, text="None", width=80, height=26,
+                      font=ctk.CTkFont(size=11),
+                      command=lambda: [v.set(0) for v in check_vars.values()]
+                      ).pack(side="left")
+
+        scroll = ctk.CTkScrollableFrame(popup, fg_color="transparent")
+        scroll.grid(row=1, column=0, sticky="nsew", padx=8, pady=4)
+
+        for val in unique_vals:
+            checked = 1 if (not current or val in current) else 0
+            var = tk.IntVar(value=checked)
+            check_vars[val] = var
+            ctk.CTkCheckBox(scroll, text=val if val else "(empty)",
+                            variable=var,
+                            font=ctk.CTkFont(size=11)).pack(anchor="w", pady=1)
+
+        btn_row = ctk.CTkFrame(popup, fg_color="transparent")
+        btn_row.grid(row=2, column=0, sticky="ew", padx=8, pady=(2, 8))
+
+        def _apply():
+            selected = {v for v, var in check_vars.items() if var.get()}
+            if selected == set(unique_vals):
+                self._col_filters.pop(col, None)
+            else:
+                self._col_filters[col] = selected
+            self._update_heading(col)
+            self._refresh_table()
+            popup.destroy()
+
+        ctk.CTkButton(btn_row, text="Apply", height=28, font=ctk.CTkFont(size=12),
+                      command=_apply).pack(side="left", fill="x", expand=True, padx=(0, 4))
+        ctk.CTkButton(btn_row, text="Cancel", height=28, font=ctk.CTkFont(size=12),
+                      fg_color="transparent", border_width=1,
+                      text_color=["#1A1A1A", "#DCE4EE"],
+                      command=popup.destroy).pack(side="left", fill="x", expand=True)
+        popup.bind("<Escape>", lambda e: popup.destroy())
 
     # ------------------------------------------------------------------
     # Events
