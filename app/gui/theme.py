@@ -26,6 +26,7 @@ _DARK = {
     "fg_muted":     "#9BA3AF",
     "border":       "#3D3D3D",
     "header_bg":    "#242424",
+    "prod_marker":  "#FFD580",
 }
 
 _LIGHT = {
@@ -37,6 +38,7 @@ _LIGHT = {
     "fg_muted":     "#555555",
     "border":       "#CCCCCC",
     "header_bg":    "#DCDCDC",
+    "prod_marker":  "#B45309",
 }
 
 # Status colours — consistent across sidebar, badges, buttons
@@ -96,7 +98,7 @@ class StatusDot(tk.Canvas):
     def _draw(self) -> None:
         self.delete("all")
         # Match canvas background to parent so it looks transparent
-        bg = self.master.cget("bg") if hasattr(self.master, "cget") else "#2B2B2B"
+        bg = self.master.cget("bg") if hasattr(self.master, "cget") else tokens()["bg"]
         self.configure(bg=bg)
         color = STATUS_COLORS.get(self._status, "#888888")
         pad = 1

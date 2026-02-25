@@ -165,7 +165,6 @@ class RunFrame(ctk.CTkFrame):
             btn_frame, image=_IMG_EDIT, text="Edit", compound="left",
             width=90, height=28,
             font=ctk.CTkFont(size=12),
-            fg_color="transparent", border_width=1,
             command=self._enter_edit_mode,
         )
         self._edit_btn.grid(row=0, column=0)
@@ -184,6 +183,7 @@ class RunFrame(ctk.CTkFrame):
             width=80, height=28,
             font=ctk.CTkFont(size=12),
             fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
             command=self._on_cancel_edit,
         )
         self._cancel_btn.grid(row=0, column=1, padx=(4, 0))
@@ -263,20 +263,20 @@ class RunFrame(ctk.CTkFrame):
 
     def _build_warning_panel(self) -> None:
         self._warning_panel = ctk.CTkFrame(
-            self, fg_color="#5C3A1E", corner_radius=8)
+            self, fg_color=("#FEF3C7", "#5C3A1E"), corner_radius=8)
 
         self._warning_title_label = ctk.CTkLabel(
             self._warning_panel,
             text="⚠   Warnings",
             font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#FFD580", anchor="w",
+            text_color=("#92400E", "#FFD580"), anchor="w",
         )
         self._warning_title_label.grid(row=0, column=0, padx=16, pady=(10, 4), sticky="w")
 
         self._warning_label = ctk.CTkLabel(
             self._warning_panel, text="",
             font=ctk.CTkFont(size=12),
-            text_color="#FFD580", anchor="nw", justify="left",
+            text_color=("#92400E", "#FFD580"), anchor="nw", justify="left",
         )
         self._warning_label.grid(row=1, column=0, padx=16, pady=(0, 10), sticky="w")
 

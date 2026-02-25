@@ -147,7 +147,6 @@ class IterationFrame(ctk.CTkFrame):
             panel, image=_IMG_EDIT, text="Edit", compound="left",
             width=90, height=28,
             font=ctk.CTkFont(size=12),
-            fg_color="transparent", border_width=1,
             command=self._on_edit_iteration,
         )
         self._edit_btn.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=8)

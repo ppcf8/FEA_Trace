@@ -97,6 +97,7 @@ class NewVersionDialog(ctk.CTkToplevel):
         ctk.CTkButton(
             btn_frame, text="Cancel", width=100,
             fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
             command=self.destroy,
         ).pack(side="left", padx=(0, 8))
 

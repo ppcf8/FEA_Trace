@@ -231,7 +231,6 @@ class VersionFrame(ctk.CTkFrame):
             image=_IMG_EDIT, text="Edit", compound="left",
             width=90, height=28,
             font=ctk.CTkFont(size=12),
-            fg_color="transparent", border_width=1,
             state="normal" if current == VersionStatus.WIP else "disabled",
             command=self._on_edit_version,
         ).pack(anchor="e", pady=(0, 8))

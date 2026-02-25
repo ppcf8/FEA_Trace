@@ -90,6 +90,7 @@ class EntityFrame(ctk.CTkFrame):
             hdr, text="Open Folder", width=110, height=32,
             font=ctk.CTkFont(size=12),
             fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
             command=self._on_open_folder,
         ).grid(row=0, column=1, padx=(12, 0), sticky="e")
 
@@ -126,7 +127,6 @@ class EntityFrame(ctk.CTkFrame):
             panel, image=_IMG_EDIT, text="Edit", compound="left",
             width=90, height=28,
             font=ctk.CTkFont(size=12),
-            fg_color="transparent", border_width=1,
             command=self._on_edit_entity,
         )
         self._edit_btn.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=8)
