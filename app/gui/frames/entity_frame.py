@@ -28,12 +28,12 @@ _VERSION_STATUS_TEXT = {
 }
 
 _COL_WEIGHTS = {
-    "id":         1,
-    "status":     3,
-    "intent":     8,
-    "iterations": 1,
-    "created_by": 3,
-    "created_on": 3,
+    "id":          1,
+    "status":      3,
+    "description": 8,
+    "iterations":  1,
+    "created_by":  3,
+    "created_on":  3,
 }  # total = 19 units
 
 
@@ -154,7 +154,7 @@ class EntityFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=15, weight="bold"), anchor="w",
         ).grid(row=0, column=0, sticky="w", pady=(0, 8))
 
-        cols = ("id", "status", "intent", "iterations",
+        cols = ("id", "status", "description", "iterations",
                 "created_by", "created_on")
         self._table = ttk.Treeview(
             section, columns=cols, show="headings",
@@ -163,12 +163,12 @@ class EntityFrame(ctk.CTkFrame):
         )
 
         headings = {
-            "id":         ("ID",         "center"),
-            "status":     ("Status",     "w"),
-            "intent":     ("Intent",     "w"),
-            "iterations": ("Iters",      "center"),
-            "created_by": ("Created By", "w"),
-            "created_on": ("Created On", "w"),
+            "id":          ("ID",          "center"),
+            "status":      ("Status",      "w"),
+            "description": ("Description", "w"),
+            "iterations":  ("Iters",       "center"),
+            "created_by":  ("Created By",  "w"),
+            "created_on":  ("Created On",  "w"),
         }
         for col, (heading, anchor) in headings.items():
             self._table.heading(col, text=heading, anchor=anchor)
@@ -236,13 +236,13 @@ class EntityFrame(ctk.CTkFrame):
         for v in self._project.entity.versions:
             status_val   = v.status.value
             status_text  = _VERSION_STATUS_TEXT.get(status_val, status_val)
-            intent_short = v.intent.strip().replace("\n", " ")
-            if len(intent_short) > 60:
-                intent_short = intent_short[:57] + "…"
+            desc_short = v.description.strip().replace("\n", " ")
+            if len(desc_short) > 60:
+                desc_short = desc_short[:57] + "…"
 
             tag = f"status_{status_val}"
             self._table.insert("", "end", iid=v.id, tags=(tag,), values=(
-                v.id, status_text, intent_short,
+                v.id, status_text, desc_short,
                 len(v.iterations), v.created_by, v.created_on,
             ))
 
@@ -287,9 +287,9 @@ class EntityFrame(ctk.CTkFrame):
         if dlg.result is None:
             return
 
-        intent, notes, created_by = dlg.result
+        description, notes, created_by = dlg.result
         try:
-            self._project.add_version(intent, created_by, notes)
+            self._project.add_version(description, created_by, notes)
         except Exception as exc:
             self._show_error("Create Version Failed", str(exc))
             return

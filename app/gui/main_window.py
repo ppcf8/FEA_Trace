@@ -259,9 +259,10 @@ class MainWindow(ctk.CTk):
         self.set_status("Entity closed.")
 
     def _create_project(self, params: tuple) -> None:
-        parent_dir, name, project, owner, created_by = params
+        parent_dir, entity_id, name, project, owner, created_by = params
         try:
-            proj = FEAProject.create(parent_dir, name, project, owner, created_by)
+            proj = FEAProject.create(parent_dir, name, project, owner, created_by,
+                                     entity_id=entity_id)
         except Exception as exc:
             self._show_error("Create Entity Failed", str(exc))
             return

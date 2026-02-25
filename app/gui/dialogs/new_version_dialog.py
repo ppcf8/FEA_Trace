@@ -11,7 +11,7 @@ from app.gui.hints import NEW_VERSION_SUBTITLE
 
 class NewVersionDialog(ctk.CTkToplevel):
     """
-    result: (intent: str, notes: list[str], created_by: str) | None
+    result: (description: str, notes: list[str], created_by: str) | None
     """
 
     def __init__(self, parent):
@@ -49,14 +49,14 @@ class NewVersionDialog(ctk.CTkToplevel):
         form.grid(row=2, column=0, sticky="ew", padx=24)
         form.columnconfigure(1, weight=1)
 
-        # Intent
+        # Description
         ctk.CTkLabel(
-            form, text="Intent *",
+            form, text="Description *",
             font=ctk.CTkFont(size=12), anchor="nw",
         ).grid(row=0, column=0, padx=(0, 12), pady=(0, 6), sticky="nw")
 
-        self._intent_box = ctk.CTkTextbox(form, height=80, wrap="word")
-        self._intent_box.grid(row=0, column=1, pady=(0, 6), sticky="ew")
+        self._description_box = ctk.CTkTextbox(form, height=80, wrap="word")
+        self._description_box.grid(row=0, column=1, pady=(0, 6), sticky="ew")
 
         # Notes (optional, one per line)
         ctk.CTkLabel(
@@ -107,17 +107,17 @@ class NewVersionDialog(ctk.CTkToplevel):
         ).pack(side="left")
 
     def _on_confirm(self) -> None:
-        intent     = self._intent_box.get("1.0", "end").strip()
-        notes_raw  = self._notes_box.get("1.0", "end").strip()
-        created_by = self._created_by_var.get().strip()
+        description = self._description_box.get("1.0", "end").strip()
+        notes_raw   = self._notes_box.get("1.0", "end").strip()
+        created_by  = self._created_by_var.get().strip()
 
-        if not intent:
-            self._error_label.configure(text="Intent is required.")
+        if not description:
+            self._error_label.configure(text="Description is required.")
             return
         if not created_by:
             self._error_label.configure(text="Created By is required.")
             return
 
         notes = [n.strip() for n in notes_raw.splitlines() if n.strip()]
-        self.result = (intent, notes, created_by)
+        self.result = (description, notes, created_by)
         self.destroy()

@@ -54,8 +54,8 @@ class EditEntityDialog(ctk.CTkToplevel):
         self._id_label.grid(row=0, column=1, pady=6, sticky="w")
 
         fields = [
-            ("Entity Name *",  "_name_var"),
             ("Project Code *", "_project_var"),
+            ("Entity Name *",  "_name_var"),
             ("Owner Team *",   "_owner_var"),
             ("Created By *",   "_created_by_var"),
         ]
