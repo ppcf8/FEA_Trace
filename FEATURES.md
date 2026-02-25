@@ -206,6 +206,21 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `_check_production_artifacts`, mirroring `RunFrame._get_warnings()`.
   `app/gui/sidebar.py` _(2026-02-25)_
 
+- **Sort and filter for summary tables** — All three summary tables (Versions in EntityFrame,
+  Iterations in VersionFrame, Runs in IterationFrame) support column sorting and per-column
+  filtering. Left-click a heading to sort ascending/descending (▲/▼ indicator embedded in heading
+  text; state resets on `load()`). Right-click a heading to open a per-column filter popup with
+  checkboxes (⊿ indicator when active). Text-heavy columns (`description`, `iterations`, `runs`,
+  `comments`) suppress the filter popup via a module-level `_NO_FILTER_COLS` frozenset — sort still
+  works on those columns. Date columns (`created_on`, `date`) strip the time component in the popup
+  and offer a ↓ Newest / ↑ Oldest toggle to reorder checkboxes. Filters cascade: the popup builds
+  its value list from rows that already pass all other active filters and the current search query,
+  mirroring Excel AutoFilter behaviour. A real-time "Search:" bar above each table filters across
+  all columns simultaneously (✕ clear button included). Active column filters and search all combine
+  as AND.
+  `app/gui/frames/entity_frame.py`, `app/gui/frames/version_frame.py`,
+  `app/gui/frames/iteration_frame.py` _(2026-02-25)_
+
 - **RunFrame inline comment editing** — Comments textbox is read-only by default
   (`state="disabled"`). An Edit button at the metadata panel top-right enters edit mode:
   the textbox becomes active and Edit swaps for Save + Cancel buttons (toggled via
@@ -298,11 +313,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   that no longer exist (e.g. shared with another user), the app currently silently stays on the
   welcome screen. Should prompt a warning dialog and optionally let the user pick a new root folder
   to remap all entity paths in the session.
-
-- **Add filters and sort to the tables on Entity tab, Version Tab, and Iteration tab** — clickable
-  column headers to sort `ttk.Treeview` tables; optional text-filter widgets above each table.
-  No model changes required; purely a GUI addition across `entity_frame.py`, `version_frame.py`,
-  and `iteration_frame.py`.
 
 - **Project as navigator tree first level** — restructure the sidebar tree so the project code is
   the root node and entities appear beneath it, rather than the current flat list with the project
