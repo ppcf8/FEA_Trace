@@ -53,11 +53,23 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   rebuilding the subtree.
   `app/gui/sidebar.py`, `app/gui/main_window.py` _(2026-02-24)_
 
+- **Project as navigator tree first level** — Project code nodes are now the top-level
+  tree items; entity nodes appear beneath them, labelled by entity name only (no
+  `ProjectCode ·` prefix). Entities sharing the same project code are grouped under
+  one project node. Project nodes are created on demand and removed automatically when
+  their last entity is closed. Right-click on a project node shows a per-project
+  **Expand / Collapse** menu; right-click on an entity node keeps the existing
+  **Expand / Collapse + Close Entity** options. A new `tag_project` style (bold, size 12)
+  distinguishes project nodes from entity nodes. Purely a `sidebar.py` refactor — no
+  schema or model changes.
+  `app/gui/sidebar.py` _(2026-02-25)_
+
 - **Sidebar expand / collapse** — `⊟` / `⊞` buttons in the NAVIGATOR header collapse
   or expand the entire tree. Right-click anywhere on the sidebar shows a themed context
-  menu: on an entity node → **Expand / Collapse** (that entity) + **Close Entity**;
-  on empty space or a child node → **Expand All / Collapse All** (global). Menu is
-  styled with `tokens()` colours to match the current light/dark theme.
+  menu: on a project node → **Expand / Collapse** (that project); on an entity node →
+  **Expand / Collapse** (that entity) + **Close Entity**; on empty space or a child
+  node → **Expand All / Collapse All** (global). Menu is styled with `tokens()` colours
+  to match the current light/dark theme.
   `app/gui/sidebar.py` _(2026-02-24)_
 
 - **Sidebar navigation tree** — Hierarchical tree: entity → version → iteration → run.
@@ -313,10 +325,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   that no longer exist (e.g. shared with another user), the app currently silently stays on the
   welcome screen. Should prompt a warning dialog and optionally let the user pick a new root folder
   to remap all entity paths in the session.
-
-- **Project as navigator tree first level** — restructure the sidebar tree so the project code is
-  the root node and entities appear beneath it, rather than the current flat list with the project
-  code as a label prefix. Purely a `sidebar.py` UI refactor; no schema or model changes needed.
 
 - **Fix artifacts missing warnings** — output file extensions are not currently checked for
   existence when a run is marked production. The artifact list should also be editable in WIP mode

@@ -3,14 +3,19 @@ sidebar.py — Navigation Tree
 ==============================
 Renders the collapsible hierarchy supporting multiple entities:
 
-  EV24 · Front Crossmember
-   └─ V01  ● WIP
-       └─ I01  IMPLICIT
-           └─ Run 01  ● Converged
+  EV24
+   └─ Front Crossmember
+       └─ V01  ● WIP
+           └─ I01  IMPLICIT
+               └─ Run 01  ● Converged
 
-  EV24 · Rear Crossmember
-   └─ V01  ● WIP
-       ...
+  EV24
+   └─ Rear Crossmember
+       └─ V01  ● WIP
+           ...
+
+Project codes are the top-level tree nodes; entities appear beneath them.
+Multiple entities sharing the same project code are grouped under one node.
 
 Status indicators use coloured ● text + ttk tag foreground colouring
 instead of emoji, which render as hatch fills on Windows.
@@ -91,10 +96,14 @@ class Sidebar(ctk.CTkFrame):
         self._on_select = on_select
         self._on_close  = on_close
 
-        # node_id → (node_type, entity_path, *record_ids)
-        self._node_map:    dict[str, tuple] = {}
-        # entity_path → root node id in the tree
-        self._entity_nodes: dict[str, str]  = {}
+        # node_id → (node_type, ...)
+        self._node_map:     dict[str, tuple] = {}
+        # entity_path → entity node id in the tree
+        self._entity_nodes: dict[str, str]   = {}
+        # project_code → project node id in the tree
+        self._project_nodes: dict[str, str]  = {}
+        # entity_path → project_code (for cleanup when removing/refreshing)
+        self._entity_project: dict[str, str] = {}
 
         self._build()
 
@@ -170,7 +179,13 @@ class Sidebar(ctk.CTkFrame):
             self._tree.tag_configure(tag, foreground=color)
         t = tokens()
         self._tree.tag_configure("tag_prod_marker", foreground=t["prod_marker"])
-        # Entity root nodes — slightly bolder appearance
+        # Project root nodes — bold, slightly larger
+        self._tree.tag_configure(
+            "tag_project",
+            font=("Segoe UI", 12, "bold"),
+            foreground=t["fg"],
+        )
+        # Entity nodes — slightly bolder than default
         self._tree.tag_configure(
             "tag_entity",
             font=("Segoe UI", 11, "bold"),
@@ -181,27 +196,13 @@ class Sidebar(ctk.CTkFrame):
     # Populate — add or refresh a single entity
     # ------------------------------------------------------------------
 
-    def add_entity(self, project: FEAProject) -> None:
-        """
-        Adds or refreshes one entity in the tree.
-        If the entity is already present its subtree is rebuilt in place.
-        """
-        entity_path = str(project.path)
+    def _get_or_create_project_node(self, project_code: str) -> str:
+        """Return the existing project node id for *project_code*, or create one."""
+        if project_code in self._project_nodes:
+            return self._project_nodes[project_code]
 
-        # Remove existing node if present
-        if entity_path in self._entity_nodes:
-            old_node = self._entity_nodes[entity_path]
-            # Remove all node_map entries for this entity
-            to_delete = [k for k, v in self._node_map.items()
-                         if len(v) > 1 and v[1] == entity_path]
-            to_delete.append(old_node)
-            for k in to_delete:
-                self._node_map.pop(k, None)
-            self._tree.delete(old_node)
-
-        e = project.entity
-
-        new_label = f"{e.project} · {e.name}".casefold()
+        # Insert sorted alphabetically among project nodes
+        new_label = project_code.casefold()
         siblings = self._tree.get_children("")
         insert_index = len(siblings)
         for idx, node in enumerate(siblings):
@@ -210,14 +211,73 @@ class Sidebar(ctk.CTkFrame):
                 insert_index = idx
                 break
 
-        entity_node = self._tree.insert(
+        project_node = self._tree.insert(
             "", insert_index,
-            text=f"  {e.project} · {e.name}",
+            text=f"  {project_code}",
+            open=True,
+            tags=("tag_project",),
+        )
+        self._project_nodes[project_code] = project_node
+        self._node_map[project_node] = ("project", project_code)
+        return project_node
+
+    def _cleanup_project_node_if_empty(self, project_code: str) -> None:
+        """Delete the project node if it has no entity children left."""
+        pnode = self._project_nodes.get(project_code)
+        if pnode and not self._tree.get_children(pnode):
+            self._project_nodes.pop(project_code)
+            self._node_map.pop(pnode, None)
+            self._tree.delete(pnode)
+
+    def add_entity(self, project: FEAProject) -> None:
+        """
+        Adds or refreshes one entity in the tree.
+        If the entity is already present its subtree is rebuilt in place.
+        """
+        entity_path = str(project.path)
+
+        # Remove existing entity node if present
+        if entity_path in self._entity_nodes:
+            old_node = self._entity_nodes.pop(entity_path)
+            old_project_code = self._entity_project.pop(entity_path, None)
+
+            # Clean up all node_map entries for this entity's subtree
+            to_delete = [k for k, v in self._node_map.items()
+                         if len(v) > 1 and v[1] == entity_path]
+            to_delete.append(old_node)
+            for k in to_delete:
+                self._node_map.pop(k, None)
+            self._tree.delete(old_node)
+
+            # If the old project node is now empty, remove it too
+            if old_project_code:
+                self._cleanup_project_node_if_empty(old_project_code)
+
+        e = project.entity
+        project_code = e.project
+
+        # Get or create the project node
+        project_node = self._get_or_create_project_node(project_code)
+
+        # Insert entity node under its project, sorted by entity name
+        new_label = e.name.casefold()
+        siblings = self._tree.get_children(project_node)
+        insert_index = len(siblings)
+        for idx, node in enumerate(siblings):
+            sibling_label = self._tree.item(node, "text").strip().casefold()
+            if new_label < sibling_label:
+                insert_index = idx
+                break
+
+        entity_node = self._tree.insert(
+            project_node, insert_index,
+            text=f"  {e.name}",
             open=True,
             tags=("tag_entity",),
         )
-        self._entity_nodes[entity_path] = entity_node
-        self._node_map[entity_node]     = ("entity", entity_path)
+        self._entity_nodes[entity_path]  = entity_node
+        self._entity_project[entity_path] = project_code
+        self._node_map[entity_node]       = ("entity", entity_path)
 
         for v in e.versions:
             status_val  = v.status.value
@@ -270,6 +330,7 @@ class Sidebar(ctk.CTkFrame):
     def remove_entity(self, entity_path: str) -> None:
         """Removes an entity and all its children from the tree."""
         node = self._entity_nodes.pop(entity_path, None)
+        project_code = self._entity_project.pop(entity_path, None)
         if node:
             to_delete = [k for k, v in self._node_map.items()
                          if len(v) > 1 and v[1] == entity_path]
@@ -277,6 +338,10 @@ class Sidebar(ctk.CTkFrame):
             for k in to_delete:
                 self._node_map.pop(k, None)
             self._tree.delete(node)
+
+            # Remove empty project node
+            if project_code:
+                self._cleanup_project_node_if_empty(project_code)
 
     def refresh_entity(self, project: FEAProject) -> None:
         """Alias for add_entity — rebuilds the subtree in place."""
@@ -311,7 +376,7 @@ class Sidebar(ctk.CTkFrame):
         if not sel:
             return
         payload = self._node_map.get(sel[0])
-        if payload:
+        if payload and payload[0] != "project":
             node_type, entity_path, *ids = payload
             self._on_select(node_type, entity_path, *ids)
 
@@ -356,8 +421,12 @@ class Sidebar(ctk.CTkFrame):
         item = self._tree.identify_row(event.y)
         payload = self._node_map.get(item) if item else None
 
-        if payload and payload[0] == "entity":
-            # Clicked on an entity root node — per-entity actions
+        if payload and payload[0] == "project":
+            # Clicked on a project root node — per-project expand/collapse
+            menu.add_command(label="Expand",   command=lambda: self._set_subtree_open(item, True))
+            menu.add_command(label="Collapse", command=lambda: self._set_subtree_open(item, False))
+        elif payload and payload[0] == "entity":
+            # Clicked on an entity node — per-entity actions
             entity_path = payload[1]
             menu.add_command(label="Expand",   command=lambda: self._set_subtree_open(item, True))
             menu.add_command(label="Collapse", command=lambda: self._set_subtree_open(item, False))

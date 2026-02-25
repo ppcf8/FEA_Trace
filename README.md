@@ -26,7 +26,8 @@ Each entity is persisted as a `version_log.yaml` file in its own folder. Multipl
 - **Run folder auto-creation** — `03_Runs/Run_##/` subfolder created automatically when a new run is added
 - **Run panel clipboard** — copy solver deck filename or full path to clipboard; open run folder in Explorer
 - **Table sorting and filtering** — left-click column headings to sort (▲/▼); right-click for per-column filter popups with cascading Excel-style behaviour and date-only display for date columns; real-time search bar above each table
-- **Sidebar expand / collapse** — `⊟` / `⊞` header buttons collapse or expand the full tree; right-click anywhere for a themed context menu (per-entity or global)
+- **Project-grouped sidebar** — project codes are top-level tree nodes; entities are grouped beneath their project code and labelled by name only; project nodes are created/removed automatically
+- **Sidebar expand / collapse** — `⊟` / `⊞` header buttons collapse or expand the full tree; right-click for a themed context menu (per-project, per-entity, or global)
 - **Appearance** — System / Light / Dark theme switching via Settings menu
 
 ## Requirements
