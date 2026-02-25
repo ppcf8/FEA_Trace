@@ -165,6 +165,49 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `copy.png` icon button for visual consistency with the Run panel.
   `app/gui/frames/iteration_frame.py` _(2026-02-23)_
 
+- **Open Models Folder on IterationFrame** — Action bar button opens
+  `{entity_path}/02_Models/` in the OS file explorer. Shows a status-bar warning if
+  the folder does not exist. `MODELS_FOLDER = "02_Models"` constant added to
+  `app/config.py`.
+  `app/gui/frames/iteration_frame.py`, `app/config.py` _(2026-02-25)_
+
+- **Edit metadata dialogs** — Pre-filled `CTkToplevel` edit dialogs for Entity, Version,
+  and Iteration records (`EditEntityDialog`, `EditVersionDialog`, `EditIterationDialog`).
+  Each dialog mirrors its corresponding creation dialog but pre-fills current values and
+  uses a "Save" button. `FEAProject` gains `update_entity_metadata`,
+  `update_version_metadata`, and `update_iteration_metadata` methods.
+  `EditIterationDialog` disables the Solver Type selector when runs already exist;
+  `update_iteration_metadata` regenerates `filename_base` only when solver type changes.
+  Edit buttons are placed at the metadata panel top-right corner via
+  `place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=8)`.
+  `app/core/models.py`, `app/gui/dialogs/edit_entity_dialog.py`,
+  `app/gui/dialogs/edit_version_dialog.py`, `app/gui/dialogs/edit_iteration_dialog.py`,
+  `app/gui/frames/entity_frame.py`, `app/gui/frames/version_frame.py`,
+  `app/gui/frames/iteration_frame.py` _(2026-02-25)_
+
+- **Edit button production locking** — Version and Iteration Edit buttons are disabled
+  when the parent version status is not WIP, and re-enabled immediately on revert to WIP.
+  Run Edit button is disabled when `run.artifacts.is_production` is `True`; updates
+  immediately on Production switch toggle via `_on_production_toggle` (not only on
+  tab switch).
+  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
+  `app/gui/frames/run_frame.py` _(2026-02-25)_
+
+- **Version audit trail protection** — `EditVersionDialog` splits `version.notes` into
+  user-editable notes and immutable system revert entries (lines prefixed `[REVERTED`).
+  Revert entries are shown in a separate read-only `CTkTextbox` (`state="disabled"`) and
+  are always appended unchanged after user notes on save — they cannot be tampered with
+  through the UI.
+  `app/gui/dialogs/edit_version_dialog.py` _(2026-02-25)_
+
+- **RunFrame inline comment editing** — Comments textbox is read-only by default
+  (`state="disabled"`). An Edit button at the metadata panel top-right enters edit mode:
+  the textbox becomes active and Edit swaps for Save + Cancel buttons (toggled via
+  `grid_remove()` / `grid()`). Cancel restores `_original_comments`. Toggling the
+  Production switch ON immediately cancels any active edit and disables the Edit button.
+  `load()` always resets to view mode.
+  `app/gui/frames/run_frame.py` _(2026-02-25)_
+
 ---
 
 ## Infrastructure
@@ -185,6 +228,12 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `mkdir(parents=True, exist_ok=True)` on `03_Runs/Run_##/` after writing the YAML,
   so every new run immediately has a dedicated folder for solver input/output files.
   `app/core/models.py` _(2026-02-23)_
+
+- **Run subfolder naming** — Run subfolders inside `03_Runs/` renamed from `Run_##` to
+  `{version_id}{iter_id}_Run_{run_id:02d}` (e.g. `V01I01_Run_01`) to prevent name
+  collisions when multiple versions or iterations each have a `Run_01`. The helper
+  `_run_subfolder(version_id, iter_id, run_id)` in `models.py` centralises the format.
+  `app/core/models.py` _(2026-02-24)_
 
 - **App version decoupled from schema version** — `APP_VERSION` in `app/config.py` set
   independently of `SCHEMA_VERSION`; bumped to `2.0.0`.
