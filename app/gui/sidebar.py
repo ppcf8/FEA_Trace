@@ -22,7 +22,7 @@ import tkinter.ttk as ttk
 import customtkinter as ctk
 from typing import Callable, Optional
 
-from app.core.models import FEAProject
+from app.core.models import FEAProject, _check_input_file, _check_production_artifacts
 from app.gui.theme import (
     apply_sidebar_style, make_scrollbar,
     STATUS_COLORS, tokens,
@@ -247,10 +247,21 @@ class Sidebar(ctk.CTkFrame):
                     prod_suffix = "  ★" if run.artifacts.is_production else ""
                     tags        = (tag, "tag_prod_marker") \
                                   if run.artifacts.is_production else (tag,)
+                    if run.artifacts.is_production:
+                        _warn = _check_production_artifacts(
+                            project.path, i.solver_type, i.filename_base,
+                            run.id, v.id, i.id,
+                        )
+                    else:
+                        _warn = _check_input_file(
+                            project.path, i.solver_type, i.filename_base,
+                            run.id, v.id, i.id,
+                        )
+                    warn_suffix = "  ⚠" if _warn else ""
 
                     run_node = self._tree.insert(
                         i_node, "end",
-                        text=f"  Run {run.id:02d}  {status_text}{prod_suffix}",
+                        text=f"  Run {run.id:02d}  {status_text}{prod_suffix}{warn_suffix}",
                         tags=tags,
                     )
                     self._node_map[run_node] = (
