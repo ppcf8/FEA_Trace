@@ -43,6 +43,9 @@ _COL_WEIGHTS = {
     "comments":   6,
 }  # total = 24 units
 
+_NO_FILTER_COLS = frozenset({"comments"})
+_DATE_COLS      = frozenset({"date"})
+
 
 # ---------------------------------------------------------------------------
 # IterationFrame
@@ -58,10 +61,15 @@ class IterationFrame(ctk.CTkFrame):
 
     def __init__(self, master, window):
         super().__init__(master, corner_radius=0, fg_color="transparent")
-        self._window      = window
-        self._project:    Optional[FEAProject] = None
-        self._version_id: Optional[str]        = None
-        self._iter_id:    Optional[str]        = None
+        self._window       = window
+        self._project:     Optional[FEAProject] = None
+        self._version_id:  Optional[str]        = None
+        self._iter_id:     Optional[str]        = None
+        self._all_rows:    list[dict]    = []
+        self._sort_col:    str | None    = None
+        self._sort_reverse: bool         = False
+        self._col_filters: dict[str, set[str]] = {}
+        self._search_var:  ctk.StringVar        = ctk.StringVar()
         self._build()
 
     # ------------------------------------------------------------------
@@ -201,13 +209,29 @@ class IterationFrame(ctk.CTkFrame):
         section = ctk.CTkFrame(self, fg_color="transparent")
         section.grid(row=2, column=0, sticky="nsew", padx=24, pady=(0, 8))
         section.columnconfigure(0, weight=1)
-        section.rowconfigure(1, weight=1)
+        section.rowconfigure(2, weight=1)
 
         ctk.CTkLabel(
             section, text="Runs",
             font=ctk.CTkFont(size=15, weight="bold"),
             anchor="w",
         ).grid(row=0, column=0, sticky="w", pady=(0, 8))
+
+        # Search row
+        search_row = ctk.CTkFrame(section, fg_color="transparent")
+        search_row.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 4))
+        search_row.columnconfigure(1, weight=1)
+        ctk.CTkLabel(search_row, text="Search:", width=52,
+                     font=ctk.CTkFont(size=12)).grid(row=0, column=0, sticky="w")
+        search_entry = ctk.CTkEntry(search_row, textvariable=self._search_var,
+                                    placeholder_text="Filter all columns…",
+                                    height=28, font=ctk.CTkFont(size=12))
+        search_entry.grid(row=0, column=1, sticky="ew", padx=(4, 4))
+        ctk.CTkButton(search_row, text="✕", width=28, height=28,
+                      font=ctk.CTkFont(size=12),
+                      command=lambda: self._search_var.set("")
+                      ).grid(row=0, column=2, sticky="e")
+        self._search_var.trace_add("write", lambda *_: self._refresh_table())
 
         cols = ("id", "name", "status", "date",
                 "created_by", "production", "comments")
@@ -226,8 +250,12 @@ class IterationFrame(ctk.CTkFrame):
             "production": ("Prod",       "center"),
             "comments":   ("Comments",   "w"),
         }
+        self._headings = headings
+        self._col_order = tuple(_COL_WEIGHTS.keys())
+
         for col, (heading, anchor) in headings.items():
-            self._table.heading(col, text=heading, anchor=anchor)
+            self._table.heading(col, text=heading, anchor=anchor,
+                                command=lambda c=col: self._on_sort(c))
             self._table.column(col, width=60, anchor=anchor, stretch=False)
 
         for status, color in STATUS_COLORS.items():
@@ -237,12 +265,13 @@ class IterationFrame(ctk.CTkFrame):
         hsb = make_scrollbar(section, "horizontal", self._table.xview)
         self._table.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
-        self._table.grid(row=1, column=0, sticky="nsew")
-        vsb.grid(row=1, column=1, sticky="ns")
-        hsb.grid(row=2, column=0, sticky="ew")
+        self._table.grid(row=2, column=0, sticky="nsew")
+        vsb.grid(row=2, column=1, sticky="ns")
+        hsb.grid(row=3, column=0, sticky="ew")
 
         self._section = section
         self._table.bind("<<TreeviewSelect>>", self._on_run_select)
+        self._table.bind("<Button-3>", self._on_heading_right_click)
         section.bind("<Configure>", self._resize_columns)
         apply_table_style("Iter.Treeview")
         ctk.AppearanceModeTracker.add(self._on_appearance_change)
@@ -300,29 +329,196 @@ class IterationFrame(ctk.CTkFrame):
         is_editable = (v.status == VersionStatus.WIP)
         self._edit_btn.configure(state="normal" if is_editable else "disabled")
 
+        self._all_rows     = []
+        self._sort_col     = None
+        self._sort_reverse = False
+        self._col_filters  = {}
+        self._search_var.set("")
+        for col in self._col_order:
+            self._update_heading(col)
         self._populate_table(i)
 
     def _populate_table(self, i) -> None:
-        for row in self._table.get_children():
-            self._table.delete(row)
-
+        self._all_rows = []
         for run in i.runs:
-            status_text = f"●  {run.status.value}"
-            tag = f"status_{run.status.value}"
-            prod  = "★" if run.artifacts.is_production else ""
+            status_text    = f"●  {run.status.value}"
+            tag            = f"status_{run.status.value}"
+            prod           = "★" if run.artifacts.is_production else ""
             comments_short = run.comments.replace("\n", " ")
             if len(comments_short) > 40:
                 comments_short = comments_short[:37] + "…"
+            self._all_rows.append({
+                "iid":    str(run.id),
+                "values": (f"{run.id:02d}", run.name, status_text, run.date,
+                           run.created_by, prod, comments_short),
+                "tags":   (tag,),
+            })
+        self._refresh_table()
 
-            self._table.insert("", "end", iid=str(run.id), tags=(tag,), values=(
-                f"{run.id:02d}",
-                run.name,
-                status_text,
-                run.date,
-                run.created_by,
-                prod,
-                comments_short,
-            ))
+    def _refresh_table(self) -> None:
+        rows  = self._all_rows
+        query = self._search_var.get().strip().lower()
+        if query:
+            rows = [r for r in rows
+                    if any(query in str(v).lower() for v in r["values"])]
+        for col, allowed in self._col_filters.items():
+            if allowed:
+                idx = self._col_order.index(col)
+                if col in _DATE_COLS:
+                    rows = [r for r in rows
+                            if str(r["values"][idx]).split(" ")[0] in allowed]
+                else:
+                    rows = [r for r in rows if str(r["values"][idx]) in allowed]
+        if self._sort_col is not None:
+            idx  = self._col_order.index(self._sort_col)
+            rows = sorted(rows,
+                          key=lambda r: str(r["values"][idx]).lower(),
+                          reverse=self._sort_reverse)
+        for row in self._table.get_children():
+            self._table.delete(row)
+        for r in rows:
+            self._table.insert("", "end", iid=r["iid"],
+                               tags=r["tags"], values=r["values"])
+
+    def _on_sort(self, col: str) -> None:
+        if self._sort_col == col:
+            self._sort_reverse = not self._sort_reverse
+        else:
+            self._sort_col, self._sort_reverse = col, False
+        for c in self._col_order:
+            self._update_heading(c)
+        self._refresh_table()
+
+    def _on_heading_right_click(self, event) -> None:
+        if self._table.identify_region(event.x, event.y) != "heading":
+            return
+        col_id = self._table.identify_column(event.x)
+        if not col_id or col_id == "#0":
+            return
+        col_name = self._col_order[int(col_id[1:]) - 1]
+        if col_name in _NO_FILTER_COLS:
+            return
+        self._open_filter_popup(col_name, event.x_root, event.y_root)
+
+    def _update_heading(self, col: str) -> None:
+        lbl, _     = self._headings[col]
+        sort_ind   = (" ▼" if self._sort_reverse else " ▲") if self._sort_col == col else ""
+        filter_ind = " ⊿" if self._col_filters.get(col) else ""
+        self._table.heading(col, text=f"{lbl}{sort_ind}{filter_ind}")
+
+    def _open_filter_popup(self, col: str, x_root: int = 0, y_root: int = 0) -> None:
+        col_idx = self._col_order.index(col)
+        is_date = col in _DATE_COLS
+
+        # Cascading: build candidates from all other active filters + search
+        candidate_rows = self._all_rows
+        query = self._search_var.get().strip().lower()
+        if query:
+            candidate_rows = [r for r in candidate_rows
+                              if any(query in str(v).lower() for v in r["values"])]
+        for other_col, allowed in self._col_filters.items():
+            if other_col != col and allowed:
+                other_idx = self._col_order.index(other_col)
+                if other_col in _DATE_COLS:
+                    candidate_rows = [r for r in candidate_rows
+                                      if str(r["values"][other_idx]).split(" ")[0] in allowed]
+                else:
+                    candidate_rows = [r for r in candidate_rows
+                                      if str(r["values"][other_idx]) in allowed]
+
+        if is_date:
+            raw_vals = {str(r["values"][col_idx]).split(" ")[0] for r in candidate_rows}
+        else:
+            raw_vals = {str(r["values"][col_idx]) for r in candidate_rows}
+        unique_vals = sorted(raw_vals, key=str.lower)
+
+        if not unique_vals:
+            return
+        current = self._col_filters.get(col, set())
+
+        popup = ctk.CTkToplevel(self._window)
+        popup.title(f"Filter: {self._headings[col][0]}")
+        popup.resizable(False, False)
+        popup.grab_set()
+        popup.columnconfigure(0, weight=1)
+        popup.rowconfigure(1, weight=1)
+
+        h = min(40 * len(unique_vals) + 130, 400) + (34 if is_date else 0)
+        popup.geometry(f"220x{h}+{x_root}+{y_root}")
+
+        quick = ctk.CTkFrame(popup, fg_color="transparent")
+        quick.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 2))
+        check_vars: dict[str, tk.IntVar] = {}
+
+        ctk.CTkButton(quick, text="All", width=70, height=26,
+                      font=ctk.CTkFont(size=11),
+                      command=lambda: [v.set(1) for v in check_vars.values()]
+                      ).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(quick, text="None", width=70, height=26,
+                      font=ctk.CTkFont(size=11),
+                      command=lambda: [v.set(0) for v in check_vars.values()]
+                      ).pack(side="left")
+
+        scroll = ctk.CTkScrollableFrame(popup, fg_color="transparent")
+        scroll.grid(row=1, column=0, sticky="nsew", padx=8, pady=4)
+
+        if is_date:
+            sort_desc = [True]  # default: newest → oldest
+
+            def _rebuild_checkboxes():
+                saved = {v: var.get() for v, var in check_vars.items()}
+                for w in scroll.winfo_children():
+                    w.destroy()
+                check_vars.clear()
+                for val in sorted(unique_vals, reverse=sort_desc[0]):
+                    checked = saved.get(val, 1 if (not current or val in current) else 0)
+                    var = tk.IntVar(value=checked)
+                    check_vars[val] = var
+                    ctk.CTkCheckBox(scroll, text=val if val else "(empty)",
+                                    variable=var,
+                                    font=ctk.CTkFont(size=11)).pack(anchor="w", pady=1)
+
+            def _toggle_sort():
+                sort_desc[0] = not sort_desc[0]
+                sort_btn.configure(text="↓ Newest" if sort_desc[0] else "↑ Oldest")
+                _rebuild_checkboxes()
+
+            sort_btn = ctk.CTkButton(quick, text="↓ Newest", width=72, height=26,
+                                     font=ctk.CTkFont(size=11),
+                                     fg_color="transparent", border_width=1,
+                                     text_color=["#1A1A1A", "#DCE4EE"],
+                                     command=_toggle_sort)
+            sort_btn.pack(side="left", padx=(4, 0))
+            _rebuild_checkboxes()
+        else:
+            for val in unique_vals:
+                checked = 1 if (not current or val in current) else 0
+                var = tk.IntVar(value=checked)
+                check_vars[val] = var
+                ctk.CTkCheckBox(scroll, text=val if val else "(empty)",
+                                variable=var,
+                                font=ctk.CTkFont(size=11)).pack(anchor="w", pady=1)
+
+        btn_row = ctk.CTkFrame(popup, fg_color="transparent")
+        btn_row.grid(row=2, column=0, sticky="ew", padx=8, pady=(2, 8))
+
+        def _apply():
+            selected = {v for v, var in check_vars.items() if var.get()}
+            if selected == set(unique_vals):
+                self._col_filters.pop(col, None)
+            else:
+                self._col_filters[col] = selected
+            self._update_heading(col)
+            self._refresh_table()
+            popup.destroy()
+
+        ctk.CTkButton(btn_row, text="Apply", height=28, font=ctk.CTkFont(size=12),
+                      command=_apply).pack(side="left", fill="x", expand=True, padx=(0, 4))
+        ctk.CTkButton(btn_row, text="Cancel", height=28, font=ctk.CTkFont(size=12),
+                      fg_color="transparent", border_width=1,
+                      text_color=["#1A1A1A", "#DCE4EE"],
+                      command=popup.destroy).pack(side="left", fill="x", expand=True)
+        popup.bind("<Escape>", lambda e: popup.destroy())
 
     # ------------------------------------------------------------------
     # Events
