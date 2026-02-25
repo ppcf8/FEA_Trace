@@ -200,6 +200,12 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   through the UI.
   `app/gui/dialogs/edit_version_dialog.py` _(2026-02-25)_
 
+- **Warning sign on navigator tree for missing run files** — Run nodes in the sidebar tree show a
+  trailing `⚠` suffix when required files are absent on disk. Non-production runs check the solver
+  deck via `_check_input_file`; production runs check both the solver deck and output artifacts via
+  `_check_production_artifacts`, mirroring `RunFrame._get_warnings()`.
+  `app/gui/sidebar.py` _(2026-02-25)_
+
 - **RunFrame inline comment editing** — Comments textbox is read-only by default
   (`state="disabled"`). An Edit button at the metadata panel top-right enters edit mode:
   the textbox becomes active and Edit swaps for Save + Cancel buttons (toggled via
@@ -287,10 +293,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Not Implemented
 
 <!-- Sorted easiest → hardest. Format: **Feature** — description. -->
-
-- **Warning sign on navigator tree for missing run files** — add a warning indicator (e.g. `⚠`) next
-  to run nodes in the sidebar tree when the solver deck is absent on disk. The file-check logic
-  (`_check_input_file` in `models.py`) already exists; this is purely a sidebar rendering change.
 
 - **Warning on session import** — when a loaded `.featrace` session file references entity paths
   that no longer exist (e.g. shared with another user), the app currently silently stays on the
