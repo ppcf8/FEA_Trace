@@ -86,6 +86,7 @@ class WelcomeFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=14),
             fg_color="transparent",
             border_width=2,
+            text_color=["#1A1A1A", "#DCE4EE"],
             command=self._window._on_open_entity,
         ).pack(side="left", padx=12)
 
@@ -97,6 +98,7 @@ class WelcomeFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=14),
             fg_color="transparent",
             border_width=2,
+            text_color=["#1A1A1A", "#DCE4EE"],
             command=self._window._on_open_session,
         ).pack(side="left", padx=12)
 

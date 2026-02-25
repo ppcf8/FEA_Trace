@@ -83,7 +83,8 @@ class Sidebar(ctk.CTkFrame):
         on_close:  Callable[[str], None],
         width: int = _SIDEBAR_WIDTH,
     ):
-        super().__init__(master, width=width, corner_radius=0)
+        super().__init__(master, width=width, corner_radius=0,
+                         fg_color=["#F0F0F0", "#2B2B2B"])
         self.pack_propagate(False)
         self.grid_propagate(False)
 
@@ -119,6 +120,7 @@ class Sidebar(ctk.CTkFrame):
             hdr, text="⊟", width=24, height=24,
             font=ctk.CTkFont(size=14),
             fg_color="transparent",
+            text_color=["#1A1A1A", "#DCE4EE"],
             hover_color=("gray75", "gray30"),
             command=self._collapse_all,
         ).grid(row=0, column=1, padx=(0, 2))
@@ -127,6 +129,7 @@ class Sidebar(ctk.CTkFrame):
             hdr, text="⊞", width=24, height=24,
             font=ctk.CTkFont(size=14),
             fg_color="transparent",
+            text_color=["#1A1A1A", "#DCE4EE"],
             hover_color=("gray75", "gray30"),
             command=self._expand_all,
         ).grid(row=0, column=2)
@@ -165,9 +168,9 @@ class Sidebar(ctk.CTkFrame):
         for status, tag in _STATUS_TAG.items():
             color = STATUS_COLORS.get(status, "#888888")
             self._tree.tag_configure(tag, foreground=color)
-        self._tree.tag_configure("tag_prod_marker", foreground="#FFD580")
-        # Entity root nodes — slightly bolder appearance
         t = tokens()
+        self._tree.tag_configure("tag_prod_marker", foreground=t["prod_marker"])
+        # Entity root nodes — slightly bolder appearance
         self._tree.tag_configure(
             "tag_entity",
             font=("Segoe UI", 11, "bold"),
