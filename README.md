@@ -45,6 +45,29 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Building/Compilation
+
+FEA Trace can be compiled into a standalone Windows executable using PyInstaller.
+
+### Using the Spec File (Recommended)
+
+```bash
+pyinstaller fea_trace.spec
+```
+
+### Using Command-Line Flags
+
+```bash
+pyinstaller --onefile --windowed --icon=app/assets/icons/fea_trace.ico --hidden-import=PIL --hidden-import=CustomTkinter --hidden-import=yaml --add-data "app/assets;app/assets" main.py
+```
+
+The compiled executable will be located in the `dist/` folder as `FEA_Trace.exe`.
+
+### Prerequisites
+
+- PyInstaller: `pip install pyinstaller`
+- All dependencies from `requirements.txt` must be installed
+
 ## Project Structure
 
 ```
