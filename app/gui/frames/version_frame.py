@@ -41,6 +41,9 @@ _COL_WEIGHTS = {
     "created_on":     3,
 }  # total = 20 units
 
+_NO_FILTER_COLS = frozenset({"description", "runs"})
+_DATE_COLS      = frozenset({"created_on"})
+
 
 class VersionFrame(ctk.CTkFrame):
 
@@ -53,6 +56,7 @@ class VersionFrame(ctk.CTkFrame):
         self._sort_col:    str | None    = None
         self._sort_reverse: bool         = False
         self._col_filters: dict[str, set[str]] = {}
+        self._search_var:  ctk.StringVar        = ctk.StringVar()
         self._build()
 
     # ------------------------------------------------------------------
@@ -146,12 +150,27 @@ class VersionFrame(ctk.CTkFrame):
         section = ctk.CTkFrame(self, fg_color="transparent")
         section.grid(row=3, column=0, sticky="nsew", padx=24, pady=(0, 8))
         section.columnconfigure(0, weight=1)
-        section.rowconfigure(1, weight=1)
+        section.rowconfigure(2, weight=1)
 
         ctk.CTkLabel(
             section, text="Iterations",
             font=ctk.CTkFont(size=15, weight="bold"), anchor="w",
         ).grid(row=0, column=0, sticky="w", pady=(0, 8))
+
+        search_row = ctk.CTkFrame(section, fg_color="transparent")
+        search_row.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 4))
+        search_row.columnconfigure(1, weight=1)
+        ctk.CTkLabel(search_row, text="Search:", width=52,
+                     font=ctk.CTkFont(size=12)).grid(row=0, column=0, sticky="w")
+        ctk.CTkEntry(
+            search_row, textvariable=self._search_var,
+            placeholder_text="Filter all columns…", height=28, font=ctk.CTkFont(size=12),
+        ).grid(row=0, column=1, sticky="ew", padx=(4, 4))
+        ctk.CTkButton(
+            search_row, text="✕", width=28, height=28,
+            font=ctk.CTkFont(size=12),
+            command=lambda: self._search_var.set(""),
+        ).grid(row=0, column=2)
 
         cols = ("id", "solver_type", "analysis_types",
                 "description", "runs", "created_by", "created_on")
@@ -182,9 +201,9 @@ class VersionFrame(ctk.CTkFrame):
         hsb = make_scrollbar(section, "horizontal", self._table.xview)
         self._table.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
-        self._table.grid(row=1, column=0, sticky="nsew")
-        vsb.grid(row=1, column=1, sticky="ns")
-        hsb.grid(row=2, column=0, sticky="ew")
+        self._table.grid(row=2, column=0, sticky="nsew")
+        vsb.grid(row=2, column=1, sticky="ns")
+        hsb.grid(row=3, column=0, sticky="ew")
 
         self._section = section
         self._table.bind("<<TreeviewSelect>>", self._on_iter_select)
@@ -192,6 +211,7 @@ class VersionFrame(ctk.CTkFrame):
         section.bind("<Configure>", self._resize_columns)
         apply_table_style("Version.Treeview")
         ctk.AppearanceModeTracker.add(self._on_appearance_change)
+        self._search_var.trace_add("write", lambda *_: self._refresh_table())
 
     def _build_action_bar(self) -> None:
         bar = ctk.CTkFrame(self, fg_color="transparent")
@@ -234,6 +254,7 @@ class VersionFrame(ctk.CTkFrame):
         self._sort_col     = None
         self._sort_reverse = False
         self._col_filters  = {}
+        self._search_var.set("")
         for col in self._col_order:
             self._update_heading(col)
         self._populate_table(v)
@@ -299,11 +320,19 @@ class VersionFrame(ctk.CTkFrame):
         self._refresh_table()
 
     def _refresh_table(self) -> None:
-        rows = self._all_rows
+        rows  = self._all_rows
+        query = self._search_var.get().strip().lower()
+        if query:
+            rows = [r for r in rows
+                    if any(query in str(v).lower() for v in r["values"])]
         for col, allowed in self._col_filters.items():
             if allowed:
-                idx  = self._col_order.index(col)
-                rows = [r for r in rows if str(r["values"][idx]) in allowed]
+                idx = self._col_order.index(col)
+                if col in _DATE_COLS:
+                    rows = [r for r in rows
+                            if str(r["values"][idx]).split(" ")[0] in allowed]
+                else:
+                    rows = [r for r in rows if str(r["values"][idx]) in allowed]
         if self._sort_col is not None:
             idx  = self._col_order.index(self._sort_col)
             rows = sorted(rows,
@@ -331,6 +360,8 @@ class VersionFrame(ctk.CTkFrame):
         if not col_id or col_id == "#0":
             return
         col_name = self._col_order[int(col_id[1:]) - 1]
+        if col_name in _NO_FILTER_COLS:
+            return
         self._open_filter_popup(col_name, event.x_root, event.y_root)
 
     def _update_heading(self, col: str) -> None:
@@ -340,11 +371,31 @@ class VersionFrame(ctk.CTkFrame):
         self._table.heading(col, text=f"{lbl}{sort_ind}{filter_ind}")
 
     def _open_filter_popup(self, col: str, x_root: int = 0, y_root: int = 0) -> None:
-        col_idx     = self._col_order.index(col)
-        unique_vals = sorted(
-            {str(r["values"][col_idx]) for r in self._all_rows},
-            key=str.lower,
-        )
+        col_idx = self._col_order.index(col)
+        is_date = col in _DATE_COLS
+
+        # Cascading: build candidate rows from all filters except this col + search
+        candidate_rows = self._all_rows
+        query = self._search_var.get().strip().lower()
+        if query:
+            candidate_rows = [r for r in candidate_rows
+                              if any(query in str(v).lower() for v in r["values"])]
+        for other_col, allowed in self._col_filters.items():
+            if other_col != col and allowed:
+                other_idx = self._col_order.index(other_col)
+                if other_col in _DATE_COLS:
+                    candidate_rows = [r for r in candidate_rows
+                                      if str(r["values"][other_idx]).split(" ")[0] in allowed]
+                else:
+                    candidate_rows = [r for r in candidate_rows
+                                      if str(r["values"][other_idx]) in allowed]
+
+        if is_date:
+            raw_vals = {str(r["values"][col_idx]).split(" ")[0] for r in candidate_rows}
+        else:
+            raw_vals = {str(r["values"][col_idx]) for r in candidate_rows}
+        unique_vals = sorted(raw_vals, key=str.lower)
+
         if not unique_vals:
             return
         current = self._col_filters.get(col, set())
@@ -356,18 +407,18 @@ class VersionFrame(ctk.CTkFrame):
         popup.columnconfigure(0, weight=1)
         popup.rowconfigure(1, weight=1)
 
-        h = min(40 * len(unique_vals) + 130, 400)
+        h = min(40 * len(unique_vals) + 130, 400) + (34 if is_date else 0)
         popup.geometry(f"220x{h}+{x_root}+{y_root}")
 
         quick = ctk.CTkFrame(popup, fg_color="transparent")
         quick.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 2))
         check_vars: dict[str, tk.IntVar] = {}
 
-        ctk.CTkButton(quick, text="All", width=80, height=26,
+        ctk.CTkButton(quick, text="All", width=70, height=26,
                       font=ctk.CTkFont(size=11),
                       command=lambda: [v.set(1) for v in check_vars.values()]
                       ).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(quick, text="None", width=80, height=26,
+        ctk.CTkButton(quick, text="None", width=70, height=26,
                       font=ctk.CTkFont(size=11),
                       command=lambda: [v.set(0) for v in check_vars.values()]
                       ).pack(side="left")
@@ -375,13 +426,42 @@ class VersionFrame(ctk.CTkFrame):
         scroll = ctk.CTkScrollableFrame(popup, fg_color="transparent")
         scroll.grid(row=1, column=0, sticky="nsew", padx=8, pady=4)
 
-        for val in unique_vals:
-            checked = 1 if (not current or val in current) else 0
-            var = tk.IntVar(value=checked)
-            check_vars[val] = var
-            ctk.CTkCheckBox(scroll, text=val if val else "(empty)",
-                            variable=var,
-                            font=ctk.CTkFont(size=11)).pack(anchor="w", pady=1)
+        if is_date:
+            sort_desc = [True]  # default: newest → oldest
+
+            def _rebuild_checkboxes():
+                saved = {v: var.get() for v, var in check_vars.items()}
+                for w in scroll.winfo_children():
+                    w.destroy()
+                check_vars.clear()
+                for val in sorted(unique_vals, reverse=sort_desc[0]):
+                    checked = saved.get(val, 1 if (not current or val in current) else 0)
+                    var = tk.IntVar(value=checked)
+                    check_vars[val] = var
+                    ctk.CTkCheckBox(scroll, text=val if val else "(empty)",
+                                    variable=var,
+                                    font=ctk.CTkFont(size=11)).pack(anchor="w", pady=1)
+
+            def _toggle_sort():
+                sort_desc[0] = not sort_desc[0]
+                sort_btn.configure(text="↓ Newest" if sort_desc[0] else "↑ Oldest")
+                _rebuild_checkboxes()
+
+            sort_btn = ctk.CTkButton(quick, text="↓ Newest", width=72, height=26,
+                                     font=ctk.CTkFont(size=11),
+                                     fg_color="transparent", border_width=1,
+                                     text_color=["#1A1A1A", "#DCE4EE"],
+                                     command=_toggle_sort)
+            sort_btn.pack(side="left", padx=(4, 0))
+            _rebuild_checkboxes()
+        else:
+            for val in unique_vals:
+                checked = 1 if (not current or val in current) else 0
+                var = tk.IntVar(value=checked)
+                check_vars[val] = var
+                ctk.CTkCheckBox(scroll, text=val if val else "(empty)",
+                                variable=var,
+                                font=ctk.CTkFont(size=11)).pack(anchor="w", pady=1)
 
         btn_row = ctk.CTkFrame(popup, fg_color="transparent")
         btn_row.grid(row=2, column=0, sticky="ew", padx=8, pady=(2, 8))
