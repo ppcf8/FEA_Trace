@@ -84,7 +84,7 @@ def _deserialise_iteration(raw):
 def _deserialise_version(raw):
     return VersionRecord(
         id=raw["id"], status=VersionStatus(raw["status"]),
-        intent=raw["intent"], created_by=raw["created_by"], created_on=raw["created_on"],
+        description=raw["description"], created_by=raw["created_by"], created_on=raw["created_on"],
         iterations=[_deserialise_iteration(i) for i in raw.get("iterations",[])],
         notes=raw.get("notes",[]))
 
@@ -113,7 +113,7 @@ def _serialise_log(log):
         "filename_base":i.filename_base,"created_by":i.created_by,"created_on":i.created_on,
         "solver_type":i.solver_type.value,"analysis_types":i.analysis_types,
         "runs":[run_d(r) for r in i.runs]}
-    def ver_d(v): return {"id":v.id,"status":v.status.value,"intent":v.intent,
+    def ver_d(v): return {"id":v.id,"status":v.status.value,"description":v.description,
         "created_by":v.created_by,"created_on":v.created_on,"notes":v.notes,
         "iterations":[iter_d(i) for i in v.iterations]}
     e = log.entity
@@ -187,9 +187,10 @@ class FEAProject:
     def path(self):   return self._path
 
     @classmethod
-    def create(cls, parent_dir, name, project, owner_team, created_by, existing_ids=None):
-        parent_dir  = Path(parent_dir)
-        entity_id   = generate_entity_id(name, existing_ids)
+    def create(cls, parent_dir, name, project, owner_team, created_by,
+               existing_ids=None, entity_id=None):
+        parent_dir = Path(parent_dir)
+        entity_id  = entity_id or generate_entity_id(name, existing_ids)
         folder_name = f"{project}_{name.replace(' ','_')}"
         entity_path = parent_dir / folder_name
         if entity_path.exists():
@@ -214,10 +215,10 @@ class FEAProject:
         warnings = _validate_folder_anatomy(entity_path)
         return cls(entity_path, log), warnings
 
-    def add_version(self, intent, created_by, notes=None):
+    def add_version(self, description, created_by, notes=None):
         existing = [v.id for v in self._log.entity.versions]
         v = VersionRecord(id=next_version_id(existing), status=VersionStatus.WIP,
-                          intent=intent, created_by=created_by, created_on=_now(),
+                          description=description, created_by=created_by, created_on=_now(),
                           notes=notes or [])
         self._log.entity.versions.append(v)
         self._write(); return v
@@ -243,11 +244,11 @@ class FEAProject:
         e.created_by = created_by
         self._write()
 
-    def update_version_metadata(self, version_id, intent, notes, created_by):
+    def update_version_metadata(self, version_id, description, notes, created_by):
         v = self._get_version(version_id)
-        v.intent     = intent
-        v.notes      = notes
-        v.created_by = created_by
+        v.description = description
+        v.notes       = notes
+        v.created_by  = created_by
         self._write()
 
     def update_iteration_metadata(self, version_id, iter_id,

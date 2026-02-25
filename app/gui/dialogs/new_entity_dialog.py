@@ -17,7 +17,7 @@ class NewEntityDialog(ctk.CTkToplevel):
     Collects the information needed to create a new entity folder.
 
     result  : Path | None  — resolved entity folder path on confirm.
-    params  : tuple | None — (parent_dir, name, project, owner_team, created_by)
+    params  : tuple | None — (parent_dir, entity_id, name, project, owner_team, created_by)
     """
 
     def __init__(self, parent):
@@ -29,6 +29,9 @@ class NewEntityDialog(ctk.CTkToplevel):
 
         self.result: Path | None  = None
         self.params: tuple | None = None
+
+        self._id_modified  = False
+        self._updating_id  = False
 
         self._build()
         try:
@@ -48,9 +51,10 @@ class NewEntityDialog(ctk.CTkToplevel):
         form.grid(row=1, column=0, sticky="ew", padx=24)
         form.columnconfigure(1, weight=1)
 
+        # Project Code is first per user request
         fields = [
-            ("Entity Name *",  "_name"),
             ("Project Code *", "_project"),
+            ("Entity Name *",  "_name"),
             ("Owner Team *",   "_owner"),
             ("Created By *",   "_created_by"),
         ]
@@ -67,23 +71,23 @@ class NewEntityDialog(ctk.CTkToplevel):
             ctk.CTkEntry(form, textvariable=var, width=280).grid(
                 row=row_i, column=1, pady=6, sticky="ew")
 
-        self._name_var       = self._vars["_name"]
         self._project_var    = self._vars["_project"]
+        self._name_var       = self._vars["_name"]
         self._owner_var      = self._vars["_owner"]
         self._created_by_var = self._vars["_created_by"]
 
-        # Entity ID preview
+        # Entity ID — editable, auto-filled from name
         ctk.CTkLabel(
-            form, text="Entity ID Preview",
+            form, text="Entity ID *",
             font=ctk.CTkFont(size=12), anchor="w",
         ).grid(row=len(fields), column=0, padx=(0, 12), pady=6, sticky="w")
 
-        self._id_preview = ctk.CTkLabel(
-            form, text="—",
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w",
-        )
-        self._id_preview.grid(row=len(fields), column=1, pady=6, sticky="w")
-        self._name_var.trace_add("write", self._update_id_preview)
+        self._id_var = ctk.StringVar()
+        self._id_entry = ctk.CTkEntry(form, textvariable=self._id_var, width=140)
+        self._id_entry.grid(row=len(fields), column=1, pady=6, sticky="w")
+
+        self._name_var.trace_add("write", self._update_id_from_name)
+        self._id_var.trace_add("write",   self._on_id_changed)
 
         # Parent directory
         ctk.CTkLabel(
@@ -126,10 +130,17 @@ class NewEntityDialog(ctk.CTkToplevel):
             command=self._on_confirm,
         ).pack(side="left")
 
-    def _update_id_preview(self, *_) -> None:
+    def _update_id_from_name(self, *_) -> None:
+        if self._id_modified:
+            return
         name = self._name_var.get().strip()
-        self._id_preview.configure(
-            text=generate_entity_id(name) if name else "—")
+        self._updating_id = True
+        self._id_var.set(generate_entity_id(name) if name else "")
+        self._updating_id = False
+
+    def _on_id_changed(self, *_) -> None:
+        if not self._updating_id:
+            self._id_modified = True
 
     def _browse_dir(self) -> None:
         path = filedialog.askdirectory(title="Select Parent Directory")
@@ -137,17 +148,19 @@ class NewEntityDialog(ctk.CTkToplevel):
             self._dir_var.set(path)
 
     def _on_confirm(self) -> None:
-        name       = self._name_var.get().strip()
         project    = self._project_var.get().strip().upper()
+        name       = self._name_var.get().strip()
         owner      = self._owner_var.get().strip()
         created_by = self._created_by_var.get().strip()
+        entity_id  = self._id_var.get().strip().upper()
         parent_dir = self._dir_var.get().strip()
 
         missing = [label for label, val in [
-            ("Entity Name",      name),
             ("Project Code",     project),
+            ("Entity Name",      name),
             ("Owner Team",       owner),
             ("Created By",       created_by),
+            ("Entity ID",        entity_id),
             ("Parent Directory", parent_dir),
         ] if not val]
 
@@ -156,6 +169,6 @@ class NewEntityDialog(ctk.CTkToplevel):
                 text=f"Required: {', '.join(missing)}")
             return
 
-        self.params = (parent_dir, name, project, owner, created_by)
+        self.params = (parent_dir, entity_id, name, project, owner, created_by)
         self.result = Path(parent_dir) / f"{project}_{name.replace(' ', '_')}"
         self.destroy()

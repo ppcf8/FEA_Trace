@@ -89,18 +89,18 @@ class VersionFrame(ctk.CTkFrame):
         panel.columnconfigure(1, weight=1)
 
         ctk.CTkLabel(
-            panel, text="Intent",
+            panel, text="Description",
             font=ctk.CTkFont(size=12, weight="bold"),
             anchor="nw", width=100,
         ).grid(row=0, column=0, padx=(16, 4), pady=(12, 6), sticky="nw")
 
-        self._intent_label = ctk.CTkLabel(
+        self._description_label = ctk.CTkLabel(
             panel, text="",
             font=ctk.CTkFont(size=12),
             anchor="nw", justify="left", wraplength=600,
         )
-        self._intent_label.grid(row=0, column=1, columnspan=3,
-                                padx=(0, 16), pady=(12, 6), sticky="nw")
+        self._description_label.grid(row=0, column=1, columnspan=3,
+                                     padx=(0, 16), pady=(12, 6), sticky="nw")
 
         fields = [("Created By", "_created_by"), ("Created On", "_created_on")]
         self._meta: dict[str, ctk.CTkLabel] = {}
@@ -212,7 +212,7 @@ class VersionFrame(ctk.CTkFrame):
             text=f"  {badge_text}  ",
             fg_color=badge_color, text_color="#FFFFFF",
         )
-        self._intent_label.configure(text=v.intent.strip())
+        self._description_label.configure(text=v.description.strip())
         self._meta["_created_by"].configure(text=v.created_by)
         self._meta["_created_on"].configure(text=v.created_on)
 
@@ -324,9 +324,9 @@ class VersionFrame(ctk.CTkFrame):
         self._window.wait_window(dlg)
         if dlg.result is None:
             return
-        intent, notes, created_by = dlg.result
+        description, notes, created_by = dlg.result
         try:
-            self._project.update_version_metadata(self._version_id, intent, notes, created_by)
+            self._project.update_version_metadata(self._version_id, description, notes, created_by)
         except Exception as exc:
             self._show_error("Edit Version Failed", str(exc))
             return

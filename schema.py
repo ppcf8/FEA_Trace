@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Optional
 import re
 
-SCHEMA_VERSION = "2.1.0"
+SCHEMA_VERSION = "2.2.0"
 
 class SolverType(str, Enum):
     IMPLICIT = "IMPLICIT"
@@ -118,14 +118,14 @@ class IterationRecord:
 
 @dataclass
 class VersionRecord:
-    id:         str
-    status:     VersionStatus
-    intent:     str
-    created_by: str
-    created_on: str
-    iterations: list[IterationRecord] = field(default_factory=list)
-    notes:      list[str] = field(default_factory=list)
-    MANDATORY = {"id", "status", "intent", "created_by", "created_on"}
+    id:          str
+    status:      VersionStatus
+    description: str
+    created_by:  str
+    created_on:  str
+    iterations:  list[IterationRecord] = field(default_factory=list)
+    notes:       list[str] = field(default_factory=list)
+    MANDATORY = {"id", "status", "description", "created_by", "created_on"}
 
 @dataclass
 class EntityRecord:

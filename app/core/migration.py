@@ -134,3 +134,23 @@ MIGRATIONS["2.0.0"] = (
     "Remove design_changes field from iterations (redundant with description).",
     False,
 )
+
+
+# ---------------------------------------------------------------------------
+# Migration: 2.1.0 → 2.2.0
+# Rename VersionRecord.intent → description.
+# ---------------------------------------------------------------------------
+
+def _migrate_2_1_0(raw: dict, migrated_by: str) -> dict:
+    for ver in raw.get("versions", []):
+        if "intent" in ver:
+            ver["description"] = ver.pop("intent")
+    raw["schema_version"] = "2.2.0"
+    return raw
+
+
+MIGRATIONS["2.1.0"] = (
+    _migrate_2_1_0,
+    "Rename VersionRecord.intent → description.",
+    False,
+)

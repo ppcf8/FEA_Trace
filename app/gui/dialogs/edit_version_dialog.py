@@ -19,7 +19,7 @@ class EditVersionDialog(ctk.CTkToplevel):
     (read-only audit entries prefixed with "[REVERTED").  On save, system
     notes are always preserved unchanged and appended after user notes.
 
-    result: (intent: str, notes: list[str], created_by: str) | None
+    result: (description: str, notes: list[str], created_by: str) | None
     """
 
     def __init__(self, parent, version: VersionRecord):
@@ -55,14 +55,14 @@ class EditVersionDialog(ctk.CTkToplevel):
         form.grid(row=1, column=0, sticky="ew", padx=24)
         form.columnconfigure(1, weight=1)
 
-        # Intent
+        # Description
         ctk.CTkLabel(
-            form, text="Intent *",
+            form, text="Description *",
             font=ctk.CTkFont(size=12), anchor="nw",
         ).grid(row=0, column=0, padx=(0, 12), pady=(0, 6), sticky="nw")
 
-        self._intent_box = ctk.CTkTextbox(form, height=80, wrap="word")
-        self._intent_box.grid(row=0, column=1, pady=(0, 6), sticky="ew")
+        self._description_box = ctk.CTkTextbox(form, height=80, wrap="word")
+        self._description_box.grid(row=0, column=1, pady=(0, 6), sticky="ew")
 
         # Notes (user-editable)
         ctk.CTkLabel(
@@ -125,7 +125,7 @@ class EditVersionDialog(ctk.CTkToplevel):
 
     def _prefill(self) -> None:
         v = self._version
-        self._intent_box.insert("1.0", v.intent)
+        self._description_box.insert("1.0", v.description)
         if self._user_notes:
             self._notes_box.insert("1.0", "\n".join(self._user_notes))
         self._created_by_var.set(v.created_by)
@@ -135,12 +135,12 @@ class EditVersionDialog(ctk.CTkToplevel):
             self._revert_box.configure(state="disabled")
 
     def _on_confirm(self) -> None:
-        intent     = self._intent_box.get("1.0", "end").strip()
-        notes_raw  = self._notes_box.get("1.0", "end").strip()
-        created_by = self._created_by_var.get().strip()
+        description = self._description_box.get("1.0", "end").strip()
+        notes_raw   = self._notes_box.get("1.0", "end").strip()
+        created_by  = self._created_by_var.get().strip()
 
-        if not intent:
-            self._error_label.configure(text="Intent is required.")
+        if not description:
+            self._error_label.configure(text="Description is required.")
             return
         if not created_by:
             self._error_label.configure(text="Created By is required.")
@@ -149,5 +149,5 @@ class EditVersionDialog(ctk.CTkToplevel):
         user_notes = [n.strip() for n in notes_raw.splitlines() if n.strip()]
         # System notes are always appended unchanged after user notes
         all_notes = user_notes + self._system_notes
-        self.result = (intent, all_notes, created_by)
+        self.result = (description, all_notes, created_by)
         self.destroy()
