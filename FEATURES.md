@@ -7,6 +7,18 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 ## Session Management
 
+- **Warning on session import (missing entity paths)** — `SessionManager.peek()` reads
+  the session file without mutating state and classifies each stored path as valid or
+  missing. If any paths are missing, `_on_open_session` shows `MissingEntitiesDialog`
+  before committing the load. The dialog lists the unresolvable paths in a read-only
+  textbox, shows a common-prefix hint, and offers three actions: **Remap Root Folder…**
+  (pick a new parent directory; partially-resolved paths stay listed until all are found
+  or the user gives up), **Load Anyway** (opens only the found + already-remapped
+  entities), **Cancel** (aborts without touching session state). A successful remap
+  marks the session dirty so the user is prompted to save the updated paths on close.
+  `app/core/session.py`, `app/gui/main_window.py`,
+  `app/gui/dialogs/missing_entities_dialog.py` _(2026-02-26)_
+
 - **Save-on-close prompt** — `WM_DELETE_WINDOW` handler shows Yes/No/Cancel when
   entities are open and the session is dirty or unsaved. Aborting the save-as dialog
   also cancels the close.
@@ -379,11 +391,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Not Implemented
 
 <!-- Sorted easiest → hardest. Format: **Feature** — description. -->
-
-- **Warning on session import** — when a loaded `.featrace` session file references entity paths
-  that no longer exist (e.g. shared with another user), the app currently silently stays on the
-  welcome screen. Should prompt a warning dialog and optionally let the user pick a new root folder
-  to remap all entity paths in the session.
 
 - **Run deletion** — allow a run to be deleted via a Delete button on `RunFrame` and a right-click
   context menu entry on the run node in the sidebar. Requires a Yes/No confirmation dialog (warn if

@@ -23,6 +23,20 @@ class SessionManager:
     @property
     def is_dirty(self) -> bool: return self._dirty
 
+    def peek(self, path) -> tuple[list[str], list[str]]:
+        """Return (valid_paths, missing_paths) without modifying session state."""
+        path = Path(path)
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as exc:
+            raise ValueError(f"Cannot read session file: {exc}") from exc
+        if not isinstance(raw, dict) or "entities" not in raw:
+            raise ValueError("Not a valid FEA Trace session file.")
+        all_entities = raw.get("entities", [])
+        valid   = [e for e in all_entities if Path(e).is_dir()]
+        missing = [e for e in all_entities if not Path(e).is_dir()]
+        return valid, missing
+
     def load(self, path) -> list[str]:
         path = Path(path)
         try:
