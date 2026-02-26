@@ -387,18 +387,41 @@ class MainWindow(ctk.CTk):
         )
         if not path:
             return
+
+        # 1. Peek — classify paths without committing session state
         try:
-            entity_paths = self._session.load(path)
+            valid_paths, missing_paths = self._session.peek(path)
         except ValueError as exc:
             self._show_error("Open Session Failed", str(exc))
             return
 
-        # Close current entities first
+        # 2. If any paths are missing, let the user decide
+        final_paths = valid_paths
+        if missing_paths:
+            from app.gui.dialogs.missing_entities_dialog import MissingEntitiesDialog
+            dlg = MissingEntitiesDialog(self, valid_paths, missing_paths)
+            self.wait_window(dlg)
+            if dlg.result is None:
+                return          # user cancelled — nothing changes
+            final_paths = dlg.result
+
+        # 3. Commit session: load() sets _path + _entities = valid_paths
+        try:
+            self._session.load(path)
+        except ValueError as exc:
+            self._show_error("Open Session Failed", str(exc))
+            return
+
+        # 4. Override entity list when remap resolved extra paths
+        if final_paths != list(self._session.entities):
+            self._session.set_entities(final_paths)  # marks dirty → user should save
+
+        # 5. Close current entities, open final list
         for p in list(self._projects.keys()):
             self._on_close_entity(p)
-
-        # Open each entity from the session
-        for ep in entity_paths:
+        # Iterate over final_paths directly: _on_close_entity → remove_entity() may
+        # have modified _session.entities if any open path matched a remapped path.
+        for ep in final_paths:
             self._load_project(Path(ep))
 
         self._update_session_label()

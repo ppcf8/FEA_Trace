@@ -21,7 +21,7 @@ Each entity is persisted as a `version_log.yaml` file in its own folder. Multipl
 - **Status state machines** — WIP / PRODUCTION / DEPRECATED for versions; WIP / CONVERGED / DIVERGED / PARTIAL / ABORTED for runs
 - **Promote to Production dialog** — promoting a version opens a dialog listing all runs grouped by iteration with checkboxes; selected runs are marked as production, a `promoted_at` timestamp is recorded and shown in the version metadata panel; reverting to WIP clears the timestamp and all run production flags automatically; promotion is blocked if any run is still in WIP status or if no runs are selected (error shown inline, dialog stays open); the per-run production switch on the Run panel is also blocked for WIP runs
 - **Artifact validation for all runs** — config-defined file extensions (input deck + output files) are checked in the run subfolder for every run; the warning panel turns red when a production run has missing artifacts, amber for non-production; extra per-run extensions can be added via a dedicated edit dialog
-- **Session management** — save/load/save-as `.featrace` session files; dirty-state tracking with save-on-close prompt
+- **Session management** — save/load/save-as `.featrace` session files; dirty-state tracking with save-on-close prompt; missing-path warning on open with an optional root-folder remap dialog
 - **Schema migration** — automatic and user-confirmed migration paths when opening older files
 - **File locking** — concurrent write protection via `.lock` files (stale locks auto-cleared after 30 s)
 - **Run folder auto-creation** — `03_Runs/{version_id}{iter_id}_Run_{run_id:02d}/` subfolder (e.g. `V01I01_Run_01`) created automatically when a new run is added
