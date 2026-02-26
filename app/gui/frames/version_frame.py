@@ -231,12 +231,13 @@ class VersionFrame(ctk.CTkFrame):
         bar = ctk.CTkFrame(self, fg_color="transparent")
         bar.grid(row=4, column=0, sticky="ew", padx=24, pady=(4, 20))
 
-        ctk.CTkButton(
+        self._new_iter_btn = ctk.CTkButton(
             bar, text="+ New Iteration",
             width=160, height=36,
             font=ctk.CTkFont(size=13),
             command=self._on_new_iteration,
-        ).pack(side="left")
+        )
+        self._new_iter_btn.pack(side="left")
 
     # ------------------------------------------------------------------
     # Load
@@ -272,6 +273,8 @@ class VersionFrame(ctk.CTkFrame):
         self._notes_label.configure(text=notes_text)
 
         self._populate_transition_buttons(v.status)
+        is_wip = v.status == VersionStatus.WIP
+        self._new_iter_btn.configure(state="normal" if is_wip else "disabled")
         self._all_rows     = []
         self._sort_col     = None
         self._sort_reverse = False

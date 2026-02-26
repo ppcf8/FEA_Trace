@@ -400,13 +400,14 @@ class RunFrame(ctk.CTkFrame):
         warnings, warn_title, is_critical = self._get_warnings(i, run, run_id, run.artifacts.is_production)
         self._show_warnings(warnings, warn_title, is_critical)
 
-        self._populate_transition_buttons(run.status)
+        self._populate_transition_buttons(run.status, is_version_wip)
 
     # ------------------------------------------------------------------
     # Transition buttons
     # ------------------------------------------------------------------
 
-    def _populate_transition_buttons(self, current: RunStatus) -> None:
+    def _populate_transition_buttons(self, current: RunStatus,
+                                     is_version_wip: bool = True) -> None:
         for w in self._transition_btn_frame.winfo_children():
             w.destroy()
 
@@ -422,12 +423,14 @@ class RunFrame(ctk.CTkFrame):
         for target in allowed:
             label, color = _TRANSITION_LABELS.get(
                 target, (target.value.title(), "#444444"))
+            state = "disabled" if (target == RunStatus.WIP and not is_version_wip) else "normal"
             ctk.CTkButton(
                 self._transition_btn_frame,
                 text=label,
                 width=160, height=34,
                 font=ctk.CTkFont(size=12),
                 fg_color=color,
+                state=state,
                 command=lambda t=target: self._on_status_change(t),
             ).pack(side="left", padx=(0, 8))
 
