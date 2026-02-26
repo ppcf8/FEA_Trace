@@ -14,7 +14,7 @@ LOG_FILENAME:         str = "version_log.yaml"
 
 REQUIRED_PRODUCTION_ARTIFACTS: dict[SolverType, list[str]] = {
     SolverType.IMPLICIT: [".fem", ".h3d"],
-    SolverType.EXPLICIT: [".rad", ".h3d"],
+    SolverType.EXPLICIT: [".rad", ".h3d",".T01"],
     SolverType.MBD:      [".xml", ".h3d"],
 }
 
