@@ -280,13 +280,14 @@ class IterationFrame(ctk.CTkFrame):
         bar = ctk.CTkFrame(self, fg_color="transparent")
         bar.grid(row=3, column=0, sticky="ew", padx=24, pady=(4, 20))
 
-        ctk.CTkButton(
+        self._new_run_btn = ctk.CTkButton(
             bar,
             text="+ New Run",
             width=120, height=36,
             font=ctk.CTkFont(size=13),
             command=self._on_new_run,
-        ).pack(side="left")
+        )
+        self._new_run_btn.pack(side="left")
 
 
     # ------------------------------------------------------------------
@@ -328,6 +329,7 @@ class IterationFrame(ctk.CTkFrame):
 
         is_editable = (v.status == VersionStatus.WIP)
         self._edit_btn.configure(state="normal" if is_editable else "disabled")
+        self._new_run_btn.configure(state="normal" if is_editable else "disabled")
 
         self._all_rows     = []
         self._sort_col     = None
