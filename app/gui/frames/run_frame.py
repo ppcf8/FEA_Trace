@@ -10,11 +10,12 @@ from pathlib import Path
 from typing import Optional
 from PIL import Image
 
-from schema import RunStatus, RUN_STATUS_TRANSITIONS
+from schema import RunStatus, RUN_STATUS_TRANSITIONS, SOLVER_EXTENSIONS
 from app.core.models import FEAProject, _check_production_artifacts, _check_input_file, _run_subfolder
-from app.config import RUNS_FOLDER
+from app.config import RUNS_FOLDER, REQUIRED_PRODUCTION_ARTIFACTS
 from app.gui.theme import add_hint
 from app.gui.hints import RUN_TOOLTIP
+from app.gui.dialogs.edit_artifacts_dialog import EditArtifactsDialog
 
 _ICONS_DIR     = Path(__file__).parent.parent.parent / "assets" / "icons"
 _IMG_COPY      = ctk.CTkImage(Image.open(_ICONS_DIR / "copy.png"),           size=(18, 18))
@@ -217,29 +218,19 @@ class RunFrame(ctk.CTkFrame):
             anchor="w", width=100,
         ).grid(row=2, column=0, padx=(16, 4), pady=(0, 6), sticky="w")
 
-        out_row = ctk.CTkFrame(panel, fg_color="transparent")
-        out_row.grid(row=2, column=1, columnspan=3, padx=(0, 16), pady=(0, 6), sticky="ew")
-
         self._output_label = ctk.CTkLabel(
-            out_row, text="—",
+            panel, text="—",
             font=ctk.CTkFont(size=12, family="Courier New"), anchor="w",
         )
-        self._output_label.pack(side="left", padx=(0, 16))
+        self._output_label.grid(row=2, column=1, padx=(0, 24), pady=(0, 6), sticky="w")
 
-        self._output_entry_var = ctk.StringVar()
-        ctk.CTkEntry(
-            out_row,
-            textvariable=self._output_entry_var,
-            placeholder_text="e.g.  .h3d",
-            width=100,
-        ).pack(side="left", padx=(0, 6))
-
-        ctk.CTkButton(
-            out_row, text="Add",
-            width=60, height=28,
+        self._artifacts_edit_btn = ctk.CTkButton(
+            panel, image=_IMG_EDIT, text="Edit", compound="left",
+            width=90, height=28,
             font=ctk.CTkFont(size=12),
-            command=self._on_add_output,
-        ).pack(side="left")
+            command=self._on_edit_artifacts,
+        )
+        self._artifacts_edit_btn.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=8)
 
         ctk.CTkLabel(
             panel, text="Production Run",
@@ -292,9 +283,11 @@ class RunFrame(ctk.CTkFrame):
     def _get_warnings(self, i, run_id: int, is_production: bool) -> tuple[list[str], str]:
         """Return (warnings, panel_title) appropriate for the current run state."""
         if is_production:
+            run = self._project._get_run(i, run_id)
             return (
                 _check_production_artifacts(self._project.path, i.solver_type, i.filename_base,
-                                            run_id, self._version_id, self._iter_id),
+                                            run_id, self._version_id, self._iter_id,
+                                            run.artifacts.output),
                 "⚠   Production Artifact Warnings",
             )
         return (
@@ -363,10 +356,17 @@ class RunFrame(ctk.CTkFrame):
 
         self._input_label.configure(
             text="  ".join(run.artifacts.input) if run.artifacts.input else "—")
+        solver_ext      = SOLVER_EXTENSIONS[i.solver_type]
+        required_output = [e for e in REQUIRED_PRODUCTION_ARTIFACTS.get(i.solver_type, [])
+                           if e != solver_ext]
+        user_extras     = [e for e in run.artifacts.output if e not in required_output]
+        all_output      = required_output + user_extras
         self._output_label.configure(
-            text="  ".join(run.artifacts.output) if run.artifacts.output else "—")
+            text="  ".join(all_output) if all_output else "—")
 
         self._production_var.set(run.artifacts.is_production)
+        self._artifacts_edit_btn.configure(
+            state="disabled" if run.artifacts.is_production else "normal")
 
         warnings, warn_title = self._get_warnings(i, run_id, run.artifacts.is_production)
         self._show_warnings(warnings, warn_title)
@@ -471,33 +471,31 @@ class RunFrame(ctk.CTkFrame):
         self._cancel_btn.grid_remove()
         self._edit_btn.grid()
 
-    def _on_add_output(self) -> None:
-        ext = self._output_entry_var.get().strip()
-        if not ext:
-            return
-        if not ext.startswith("."):
-            ext = f".{ext}"
-
+    def _on_edit_artifacts(self) -> None:
         v   = self._project._get_version(self._version_id)
         i   = self._project._get_iteration(v, self._iter_id)
         run = self._project._get_run(i, self._run_id)
 
-        if ext not in run.artifacts.output:
-            new_output = run.artifacts.output + [ext]
-            try:
-                self._project.update_run_comments(
-                    self._version_id, self._iter_id, self._run_id,
-                    output_artifacts=new_output,
-                    is_production=self._production_var.get(),
-                )
-            except Exception as exc:
-                self._show_error("Save Failed", str(exc))
-                return
-            self._output_label.configure(text="  ".join(new_output))
-        else:
-            self._output_label.configure(text="  ".join(run.artifacts.output))
-        self._output_entry_var.set("")
-        self._window.set_status(f"Output artifact {ext} added.")
+        dlg = EditArtifactsDialog(self, current=run.artifacts.output)
+        if dlg.result is None:
+            return
+
+        try:
+            self._project.update_run_comments(
+                self._version_id, self._iter_id, self._run_id,
+                output_artifacts=dlg.result,
+                is_production=self._production_var.get(),
+            )
+        except Exception as exc:
+            self._show_error("Save Failed", str(exc))
+            return
+
+        self._output_label.configure(
+            text="  ".join(dlg.result) if dlg.result else "—")
+        warnings, warn_title = self._get_warnings(i, self._run_id, self._production_var.get())
+        self._show_warnings(warnings, warn_title)
+        self._window.set_status("Output artifacts updated.")
+        self._window.refresh_sidebar()
 
     def _on_production_toggle(self) -> None:
         if not self._project or self._run_id is None:
@@ -520,6 +518,7 @@ class RunFrame(ctk.CTkFrame):
         if is_prod:
             self._on_cancel_edit()
         self._edit_btn.configure(state="disabled" if is_prod else "normal")
+        self._artifacts_edit_btn.configure(state="disabled" if is_prod else "normal")
 
         self._window.set_status(
             f"Run marked as {'production' if is_prod else 'standard'}.")

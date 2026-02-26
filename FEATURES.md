@@ -97,10 +97,15 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   (>30 s) auto-overridden.
   `app/core/models.py`, `app/config.py` _(initial)_
 
-- **Production artifact validation** — Per-solver required extensions
-  (`.fem`/`.h3d`, `.rad`/`.h3d`, `.xml`/`.h3d`) must be present before a run
-  can be marked PRODUCTION.
-  `app/config.py`, `app/core/models.py` _(initial)_
+- **Production artifact validation** — `REQUIRED_PRODUCTION_ARTIFACTS` in `config.py` maps
+  each solver type to required file extensions; the first item is the input deck (matches
+  `SOLVER_EXTENSIONS`), remaining items are output files. `_check_production_artifacts()`
+  always validates every config-required extension inside `03_Runs/{version_id}{iter_id}_Run_{run_id:02d}/`.
+  Users may add extra per-run extensions via `EditArtifactsDialog` (stored in
+  `run.artifacts.output`); these are checked alongside config defaults (deduplicated).
+  The sidebar `⚠` indicator and `RunFrame` warning panel both derive from the same check.
+  `app/config.py`, `app/core/models.py`, `app/gui/sidebar.py`,
+  `app/gui/frames/run_frame.py`, `app/gui/dialogs/edit_artifacts_dialog.py` _(2026-02-26)_
 
 - **YAML persistence** — Full CRUD via `FEAProject` (`app/core/models.py`);
   GUI frames never touch YAML directly.
@@ -241,6 +246,16 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `load()` always resets to view mode.
   `app/gui/frames/run_frame.py` _(2026-02-25)_
 
+- **Run output artifacts edit dialog** — The Artifacts panel on `RunFrame` gains an Edit
+  button at the panel top-right (same `place(relx=1.0 …)` corner pattern, icon + label).
+  Clicking opens `EditArtifactsDialog`: a `CTkToplevel` with a multi-line textbox for
+  entering extra output extensions beyond config defaults, one per line, leading dot
+  auto-added, case preserved. Saved to `run.artifacts.output` via `update_run_comments()`.
+  The Output Files label displays config-required output extensions plus user extras
+  combined. The Edit button is disabled when the run is marked as production and
+  re-enabled immediately on toggle-off via `_on_production_toggle`.
+  `app/gui/frames/run_frame.py`, `app/gui/dialogs/edit_artifacts_dialog.py` _(2026-02-26)_
+
 ---
 
 ## Infrastructure
@@ -325,12 +340,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   that no longer exist (e.g. shared with another user), the app currently silently stays on the
   welcome screen. Should prompt a warning dialog and optionally let the user pick a new root folder
   to remap all entity paths in the session.
-
-- **Fix artifacts missing warnings** — output file extensions are not currently checked for
-  existence when a run is marked production. The artifact list should also be editable in WIP mode
-  via a dedicated dialog (add/edit extensions one per line) following the same Edit-button locking
-  pattern used in `RunFrame` comments. Touches `run_frame.py`, `models.py`, and requires a new
-  artifact-edit dialog.
 
 - **Promote to Production Enhancement** — when a version is promoted to production: (1) record a
   `promoted_at` timestamp in `VersionRecord` and display it in the UI; (2) show a dialog listing

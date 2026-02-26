@@ -311,6 +311,7 @@ class Sidebar(ctk.CTkFrame):
                         _warn = _check_production_artifacts(
                             project.path, i.solver_type, i.filename_base,
                             run.id, v.id, i.id,
+                            run.artifacts.output,
                         )
                     else:
                         _warn = _check_input_file(
