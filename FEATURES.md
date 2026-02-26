@@ -172,6 +172,16 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `RunFrame` gains `_get_warnings()` helper and a dynamic warning-panel title.
   `app/core/models.py`, `app/gui/frames/run_frame.py` _(2026-02-24)_
 
+- **Artifact warnings extended to all runs; production warnings in red** — All runs
+  (not just production ones) now check config-required output artifacts and user-defined
+  extras in addition to the input deck. `RunFrame._get_warnings()` uses
+  `_check_production_artifacts()` for every run; the return value is extended to a
+  3-tuple `(warnings, title, is_critical)`. `_show_warnings()` accepts `is_critical`:
+  when `True` (production run), the panel is red (`#FEE2E2` / `#7F1D1D` background,
+  `#991B1B` / `#FCA5A5` text); non-production warnings remain amber. `.T01` added to
+  `REQUIRED_PRODUCTION_ARTIFACTS[EXPLICIT]` in `config.py`.
+  `app/config.py`, `app/gui/frames/run_frame.py` _(2026-02-26)_
+
 - **Run panel clipboard & folder actions** — Solver Deck row gains two PNG icon
   buttons: copy filename to clipboard (`copy.png`) and copy full path to clipboard
   (`copy_with_path.png`). An **Open Folder** button opens the `Run_##` subfolder in
