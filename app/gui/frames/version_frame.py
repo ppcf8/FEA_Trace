@@ -41,8 +41,9 @@ _COL_WEIGHTS = {
     "created_on":     3,
 }  # total = 20 units
 
-_NO_FILTER_COLS = frozenset({"description", "runs"})
-_DATE_COLS      = frozenset({"created_on"})
+_NO_FILTER_COLS   = frozenset({"description", "runs"})
+_DATE_COLS        = frozenset({"created_on"})
+_MULTI_VALUE_COLS = frozenset({"analysis_types"})
 
 
 class VersionFrame(ctk.CTkFrame):
@@ -356,6 +357,10 @@ class VersionFrame(ctk.CTkFrame):
                 if col in _DATE_COLS:
                     rows = [r for r in rows
                             if str(r["values"][idx]).split(" ")[0] in allowed]
+                elif col in _MULTI_VALUE_COLS:
+                    rows = [r for r in rows
+                            if any(v.strip() in allowed
+                                   for v in str(r["values"][idx]).split(","))]
                 else:
                     rows = [r for r in rows if str(r["values"][idx]) in allowed]
         if self._sort_col is not None:
@@ -411,12 +416,22 @@ class VersionFrame(ctk.CTkFrame):
                 if other_col in _DATE_COLS:
                     candidate_rows = [r for r in candidate_rows
                                       if str(r["values"][other_idx]).split(" ")[0] in allowed]
+                elif other_col in _MULTI_VALUE_COLS:
+                    candidate_rows = [r for r in candidate_rows
+                                      if any(v.strip() in allowed
+                                             for v in str(r["values"][other_idx]).split(","))]
                 else:
                     candidate_rows = [r for r in candidate_rows
                                       if str(r["values"][other_idx]) in allowed]
 
+        is_multi = col in _MULTI_VALUE_COLS
         if is_date:
             raw_vals = {str(r["values"][col_idx]).split(" ")[0] for r in candidate_rows}
+        elif is_multi:
+            raw_vals = {v.strip()
+                        for r in candidate_rows
+                        for v in str(r["values"][col_idx]).split(",")
+                        if v.strip()}
         else:
             raw_vals = {str(r["values"][col_idx]) for r in candidate_rows}
         unique_vals = sorted(raw_vals, key=str.lower)
