@@ -118,14 +118,28 @@ class VersionFrame(ctk.CTkFrame):
                 panel, text=label,
                 font=ctk.CTkFont(size=12, weight="bold"),
                 anchor="w", width=100,
-            ).grid(row=1, column=col_i * 2, padx=(16, 4), pady=(0, 12), sticky="w")
+            ).grid(row=1, column=col_i * 2, padx=(16, 4), pady=(0, 6), sticky="w")
             val = ctk.CTkLabel(panel, text="—", font=ctk.CTkFont(size=12), anchor="w")
             val.grid(row=1, column=col_i * 2 + 1,
-                     padx=(0, 24), pady=(0, 12), sticky="w")
+                     padx=(0, 24), pady=(0, 6), sticky="w")
             self._meta[key] = val
 
+        self._promoted_on_key = ctk.CTkLabel(
+            panel, text="Promoted On",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            anchor="w", width=100,
+        )
+        self._promoted_on_key.grid(row=2, column=0, padx=(16, 4), pady=(0, 12), sticky="w")
+        self._meta["_promoted_on"] = ctk.CTkLabel(
+            panel, text="—", font=ctk.CTkFont(size=12), anchor="w")
+        self._meta["_promoted_on"].grid(row=2, column=1, columnspan=3,
+                                        padx=(0, 24), pady=(0, 12), sticky="w")
+        # Hidden until promoted_at is set
+        self._promoted_on_key.grid_remove()
+        self._meta["_promoted_on"].grid_remove()
+
         self._transition_frame = ctk.CTkFrame(panel, fg_color="transparent")
-        self._transition_frame.grid(row=0, column=4, rowspan=2,
+        self._transition_frame.grid(row=0, column=4, rowspan=3,
                                     padx=(0, 16), pady=12, sticky="ne")
 
     def _build_notes_panel(self) -> None:
@@ -245,6 +259,14 @@ class VersionFrame(ctk.CTkFrame):
         self._description_label.configure(text=v.description.strip())
         self._meta["_created_by"].configure(text=v.created_by)
         self._meta["_created_on"].configure(text=v.created_on)
+
+        if v.promoted_at:
+            self._meta["_promoted_on"].configure(text=v.promoted_at)
+            self._promoted_on_key.grid()
+            self._meta["_promoted_on"].grid()
+        else:
+            self._promoted_on_key.grid_remove()
+            self._meta["_promoted_on"].grid_remove()
 
         notes_text = "\n".join(f"• {n}" for n in v.notes) if v.notes else "—"
         self._notes_label.configure(text=notes_text)
@@ -496,6 +518,27 @@ class VersionFrame(ctk.CTkFrame):
 
     def _on_status_change(self, target: VersionStatus) -> None:
         if not self._project or not self._version_id:
+            return
+
+        if target == VersionStatus.PRODUCTION:
+            from app.gui.dialogs.promote_to_production_dialog import PromoteToProductionDialog
+            dlg = PromoteToProductionDialog(self._window, self._project, self._version_id)
+            self._window.wait_window(dlg)
+            if dlg.result is None:
+                return
+            try:
+                warnings = self._project.promote_version_to_production(
+                    self._version_id, dlg.result)
+            except Exception as exc:
+                self._show_error("Promote Failed", str(exc))
+                return
+            warn_count = sum(len(w) for w in warnings.values())
+            msg = f"Version {self._version_id} promoted to Production"
+            if warn_count:
+                msg += f" — {warn_count} artifact warning(s)"
+            self._window.refresh_sidebar()
+            self._window.set_status(msg)
+            self.load(self._project, self._version_id)
             return
 
         revert_reason = None

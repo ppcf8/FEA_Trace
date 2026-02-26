@@ -19,11 +19,12 @@ Each entity is persisted as a `version_log.yaml` file in its own folder. Multipl
 
 - **Full hierarchy CRUD** — create and navigate entities, versions, iterations, and runs
 - **Status state machines** — WIP / PRODUCTION / DEPRECATED for versions; WIP / CONVERGED / DIVERGED / PARTIAL / ABORTED for runs
+- **Promote to Production dialog** — promoting a version opens a dialog listing all runs grouped by iteration with checkboxes; selected runs are marked as production, a `promoted_at` timestamp is recorded and shown in the version metadata panel; reverting to WIP clears the timestamp and all run production flags automatically
 - **Production artifact validation** — config-defined file extensions (input deck + output files) are always checked in the run subfolder when a run is marked production; extra per-run extensions can be added via a dedicated edit dialog
 - **Session management** — save/load/save-as `.featrace` session files; dirty-state tracking with save-on-close prompt
 - **Schema migration** — automatic and user-confirmed migration paths when opening older files
 - **File locking** — concurrent write protection via `.lock` files (stale locks auto-cleared after 30 s)
-- **Run folder auto-creation** — `03_Runs/Run_##/` subfolder created automatically when a new run is added
+- **Run folder auto-creation** — `03_Runs/{version_id}{iter_id}_Run_{run_id:02d}/` subfolder (e.g. `V01I01_Run_01`) created automatically when a new run is added
 - **Run panel clipboard** — copy solver deck filename or full path to clipboard; open run folder in Explorer
 - **Table sorting and filtering** — left-click column headings to sort (▲/▼); right-click for per-column filter popups with cascading Excel-style behaviour and date-only display for date columns; real-time search bar above each table
 - **Project-grouped sidebar** — project codes are top-level tree nodes; entities are grouped beneath their project code and labelled by name only; project nodes are created/removed automatically

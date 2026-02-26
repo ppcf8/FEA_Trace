@@ -85,6 +85,7 @@ def _deserialise_version(raw):
     return VersionRecord(
         id=raw["id"], status=VersionStatus(raw["status"]),
         description=raw["description"], created_by=raw["created_by"], created_on=raw["created_on"],
+        promoted_at=raw.get("promoted_at", ""),
         iterations=[_deserialise_iteration(i) for i in raw.get("iterations",[])],
         notes=raw.get("notes",[]))
 
@@ -114,7 +115,8 @@ def _serialise_log(log):
         "solver_type":i.solver_type.value,"analysis_types":i.analysis_types,
         "runs":[run_d(r) for r in i.runs]}
     def ver_d(v): return {"id":v.id,"status":v.status.value,"description":v.description,
-        "created_by":v.created_by,"created_on":v.created_on,"notes":v.notes,
+        "created_by":v.created_by,"created_on":v.created_on,"promoted_at":v.promoted_at,
+        "notes":v.notes,
         "iterations":[iter_d(i) for i in v.iterations]}
     e = log.entity
     return {"schema_version":log.schema_version,
@@ -242,8 +244,42 @@ class FEAProject:
             v.notes.append(
                 f"[REVERTED to WIP from {v.status.value} "
                 f"by {_current_user()} on {_now()}] {revert_reason}")
+            v.promoted_at = ""
+            for i in v.iterations:
+                for run in i.runs:
+                    run.artifacts.is_production = False
         v.status = new_status
         self._write()
+
+    def promote_version_to_production(
+            self, version_id: str,
+            production_run_ids: list,
+    ) -> dict:
+        """Promote version to PRODUCTION and mark selected runs.
+        Clears any previously set is_production flags first, then marks
+        the selected (iter_id, run_id) pairs. Returns artifact warnings."""
+        v = self._get_version(version_id)
+        ok, reason = validate_status_transition(v.status, VersionStatus.PRODUCTION)
+        if not ok:
+            raise StatusTransitionError(reason)
+        v.status      = VersionStatus.PRODUCTION
+        v.promoted_at = _now()
+        # Clear all existing flags, then re-mark selected
+        for i in v.iterations:
+            for run in i.runs:
+                run.artifacts.is_production = False
+        warnings: dict = {}
+        for iter_id, run_id in production_run_ids:
+            i   = self._get_iteration(v, iter_id)
+            run = self._get_run(i, run_id)
+            run.artifacts.is_production = True
+            w = _check_production_artifacts(
+                self._path, i.solver_type, i.filename_base,
+                run_id, version_id, iter_id, run.artifacts.output)
+            if w:
+                warnings[(iter_id, run_id)] = w
+        self._write()
+        return warnings
 
     def update_entity_metadata(self, name, project, owner_team, created_by):
         e = self._log.entity
