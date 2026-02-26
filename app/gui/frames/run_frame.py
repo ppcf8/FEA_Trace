@@ -535,6 +535,18 @@ class RunFrame(ctk.CTkFrame):
         if not self._project or self._run_id is None:
             return
         is_prod = self._production_var.get()
+
+        # Block marking a WIP run as production
+        if is_prod:
+            v   = self._project._get_version(self._version_id)
+            i   = self._project._get_iteration(v, self._iter_id)
+            run = self._project._get_run(i, self._run_id)
+            if run.status == RunStatus.WIP:
+                self._production_var.set(False)
+                self._window.set_status(
+                    "Cannot mark a WIP run as production — resolve the run status first.")
+                return
+
         try:
             self._project.update_production_flag(
                 self._version_id, self._iter_id,

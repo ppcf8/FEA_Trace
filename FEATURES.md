@@ -283,6 +283,16 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/gui/dialogs/promote_to_production_dialog.py`,
   `app/gui/frames/version_frame.py`, `app/gui/frames/run_frame.py` _(2026-02-27)_
 
+- **Promote to Production — WIP and empty-selection guards** — `PromoteToProductionDialog._on_confirm()`
+  now enforces two pre-conditions before allowing promotion: (1) every run in the version (regardless
+  of checkbox state) must have a terminal status — if any run is still WIP, the existing `_error_label`
+  (row 4, red) is populated with the offending run identifiers (e.g. `I01 Run 01`) and the dialog stays
+  open; (2) at least one run checkbox must be checked — an empty selection surfaces the same label with
+  a distinct message. The `RunFrame` production switch mirrors this rule: `_on_production_toggle()`
+  blocks toggling a WIP run to production, reverts the switch to `False`, and shows a status-bar
+  warning; toggling OFF is always permitted.
+  `app/gui/dialogs/promote_to_production_dialog.py`, `app/gui/frames/run_frame.py` _(2026-02-26)_
+
 ---
 
 ## Infrastructure
@@ -363,13 +373,59 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 <!-- Sorted easiest → hardest. Format: **Feature** — description. -->
 
+- **Extra outputs — underscore-prefix special cases** — some solvers produce variant output files
+  whose names start with an underscore suffix (e.g. `_nl.out`, `_impl.h3d`) instead of the
+  canonical `{base}{ext}` name. `_check_production_artifacts()` currently does an exact path check;
+  it should fall back to a glob (`{base}*{ext}` or `*{ext}`) when the exact file is absent.
+  _Design decision to investigate: define the glob pattern precisely enough to avoid false matches
+  from other runs in the same folder._
+  `app/core/models.py`
+
 - **Warning on session import** — when a loaded `.featrace` session file references entity paths
   that no longer exist (e.g. shared with another user), the app currently silently stays on the
   welcome screen. Should prompt a warning dialog and optionally let the user pick a new root folder
   to remap all entity paths in the session.
+
+- **Run deletion** — allow a run to be deleted via a Delete button on `RunFrame` and a right-click
+  context menu entry on the run node in the sidebar. Requires a Yes/No confirmation dialog (warn if
+  the run folder exists on disk). A new `delete_run()` method on `FEAProject` removes the record
+  from `i.runs` and optionally deletes the `03_Runs/VxxIxx_Run_##/` subfolder. The sidebar
+  right-click handler currently has no branch for run nodes (`payload[0] == "run"`) — that payload
+  type needs registering. After deletion, navigate back to the parent `IterationFrame` and refresh
+  the sidebar subtree. _Design decision to investigate: whether to delete the run folder from disk,
+  move it to trash, or leave it untouched._
+  `app/core/models.py`, `app/gui/frames/run_frame.py`, `app/gui/sidebar.py`
 
 - **Default Options** — add project-code and entity-name dropdowns (with free-text fallback) to
   the entity dialogs, populated from a user-level settings config file. The config should be
   importable from a structured external file and editable directly in the app (Settings menu).
   Entity name list must filter by the selected project code. Introduces a new persistence layer
   (`settings.json` or similar) and a settings editor dialog.
+
+- **Iteration deprecated status** — add a DEPRECATED status to `IterationRecord`, mirroring the
+  existing version status machine. `IterationRecord` currently has no `status` field at all, so
+  this requires a new `IterationStatus` enum, a transition table, a schema bump and migration,
+  serialisation/deserialisation changes, a status button + revert dialog on `IterationFrame`, and
+  sidebar tag updates. _Design decisions to investigate: allowed transitions (WIP → DEPRECATED →
+  WIP?); whether deprecated iterations should be excluded from the Promote dialog; how Edit button
+  locking interacts with iteration status vs. parent version status._
+  `schema.py`, `app/core/migration.py`, `app/core/models.py`, `app/gui/frames/iteration_frame.py`,
+  `app/gui/sidebar.py`, `app/gui/dialogs/` (new revert dialog)
+
+- **Send output — email with stored communication log** — a "Send Output" button (location TBD —
+  version or run panel) pre-fills an email (subject derived from version/entity metadata) and opens
+  the user's mail client. After sending, the user confirms dispatch and a communication record is
+  stored in FEA Trace. _Design decisions to investigate: where the button lives (VersionFrame vs.
+  RunFrame); email trigger mechanism (`mailto:` link vs. SMTP — mailto gives no send confirmation);
+  schema for communication records (new `CommunicationRecord` dataclass, attached to which level?);
+  where communication history is displayed in the UI._
+  `schema.py`, `app/core/migration.py`, `app/core/models.py`, new dialog + panel
+
+- **Multiple users — conflict management and UI refresh** — detect when another user has modified
+  the same `version_log.yaml` while the current user has it open, surface a notification (user name
+  + change summary), and offer a merge or reload path. The existing `_LockManager` only guards
+  writes; there is no polling, file-watching, or change-detection mechanism. _Design decisions to
+  investigate: polling interval vs. `watchdog` library; diff/merge strategy for simultaneous edits;
+  notification widget design (toast? status bar?); how to refresh a frame mid-session without
+  discarding in-progress user edits; conflict resolution policy (last-write-wins vs. manual merge)._
+  `app/core/models.py`, `app/gui/main_window.py`, `app/gui/sidebar.py`, all content frames

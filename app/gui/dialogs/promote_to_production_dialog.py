@@ -8,6 +8,7 @@ import customtkinter as ctk
 from typing import Optional
 
 from app.core.models import FEAProject
+from schema import RunStatus
 
 
 class PromoteToProductionDialog(ctk.CTkToplevel):
@@ -172,9 +173,26 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
     # ------------------------------------------------------------------
 
     def _on_confirm(self) -> None:
-        self.result = [
-            key for key, var in self._checks.items() if var.get()
+        # Block promotion if any run is still WIP
+        v = self._project._get_version(self._version_id)
+        wip_labels = [
+            f"{i.id} Run {run.id:02d}"
+            for i in v.iterations
+            for run in i.runs
+            if run.status == RunStatus.WIP
         ]
+        if wip_labels:
+            self._error_label.configure(
+                text=f"Cannot promote — resolve WIP runs first: {', '.join(wip_labels)}"
+            )
+            return
+        selected = [key for key, var in self._checks.items() if var.get()]
+        if not selected:
+            self._error_label.configure(
+                text="Cannot promote — at least one run must be selected."
+            )
+            return
+        self.result = selected
         self.destroy()
 
     def _center(self) -> None:
