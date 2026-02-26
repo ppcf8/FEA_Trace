@@ -66,13 +66,10 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
             if not i.runs:
                 continue
             has_runs = True
-            desc = i.description.strip()
-            if len(desc) > 50:
-                desc = desc[:47] + "…"
             # Iteration header
             ctk.CTkLabel(
                 scroll,
-                text=f"{i.id}  ·  {i.solver_type.value}  —  {desc}",
+                text=f"{i.id}  ·  {i.solver_type.value}",
                 font=ctk.CTkFont(size=12, weight="bold"),
                 anchor="w",
             ).pack(anchor="w", padx=(8, 0), pady=(8, 2))
