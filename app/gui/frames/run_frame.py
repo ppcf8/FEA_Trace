@@ -11,7 +11,7 @@ from typing import Optional
 from PIL import Image
 
 from schema import RunStatus, RUN_STATUS_TRANSITIONS, SOLVER_EXTENSIONS, VersionStatus
-from app.core.models import FEAProject, _check_production_artifacts, _check_input_file, _run_subfolder
+from app.core.models import FEAProject, _check_production_artifacts, _run_subfolder
 from app.config import RUNS_FOLDER, REQUIRED_PRODUCTION_ARTIFACTS
 from app.gui.theme import add_hint
 from app.gui.hints import RUN_TOOLTIP
@@ -278,30 +278,38 @@ class RunFrame(ctk.CTkFrame):
         )
         self._warning_label.grid(row=1, column=0, padx=16, pady=(0, 10), sticky="w")
 
-    def _show_warnings(self, warnings: list[str], title: str = "⚠   Warnings") -> None:
+    def _show_warnings(self, warnings: list[str], title: str = "⚠   Warnings",
+                       is_critical: bool = False) -> None:
         if not warnings:
             self._warning_panel.grid_remove()
             return
-        self._warning_title_label.configure(text=title)
+        if is_critical:
+            panel_colors = ("#FEE2E2", "#7F1D1D")
+            text_colors  = ("#991B1B", "#FCA5A5")
+        else:
+            panel_colors = ("#FEF3C7", "#5C3A1E")
+            text_colors  = ("#92400E", "#FFD580")
+        self._warning_panel.configure(fg_color=panel_colors)
+        self._warning_title_label.configure(text=title, text_color=text_colors)
         self._warning_label.configure(
-            text="\n".join(f"  • {w}" for w in warnings))
+            text="\n".join(f"  • {w}" for w in warnings),
+            text_color=text_colors)
         self._warning_panel.grid(row=3, column=0, sticky="ew", padx=24, pady=(0, 8))
 
-    def _get_warnings(self, i, run_id: int, is_production: bool) -> tuple[list[str], str]:
-        """Return (warnings, panel_title) appropriate for the current run state."""
+    def _get_warnings(self, i, run, run_id: int, is_production: bool) -> tuple[list[str], str, bool]:
+        """Return (warnings, panel_title, is_critical) appropriate for the current run state."""
         if is_production:
-            run = self._project._get_run(i, run_id)
             return (
                 _check_production_artifacts(self._project.path, i.solver_type, i.filename_base,
                                             run_id, self._version_id, self._iter_id,
                                             run.artifacts.output),
                 "⚠   Production Artifact Warnings",
+                True,
             )
-        return (
-            _check_input_file(self._project.path, i.solver_type, i.filename_base,
-                              run_id, self._version_id, self._iter_id),
-            "⚠   Input File Not Found",
-        )
+        warnings = _check_production_artifacts(self._project.path, i.solver_type, i.filename_base,
+                                               run_id, self._version_id, self._iter_id,
+                                               run.artifacts.output)
+        return warnings, "⚠   Warnings", False
 
     def _build_status_panel(self) -> None:
         self._status_panel = ctk.CTkFrame(self)
@@ -389,8 +397,8 @@ class RunFrame(ctk.CTkFrame):
         self._artifacts_edit_btn.configure(
             state="disabled" if lock else "normal")
 
-        warnings, warn_title = self._get_warnings(i, run_id, run.artifacts.is_production)
-        self._show_warnings(warnings, warn_title)
+        warnings, warn_title, is_critical = self._get_warnings(i, run, run_id, run.artifacts.is_production)
+        self._show_warnings(warnings, warn_title, is_critical)
 
         self._populate_transition_buttons(run.status)
 
@@ -478,10 +486,11 @@ class RunFrame(ctk.CTkFrame):
                 comments=comments,
                 is_production=self._production_var.get(),
             )
-            v = self._project._get_version(self._version_id)
-            i = self._project._get_iteration(v, self._iter_id)
-            warnings, warn_title = self._get_warnings(i, self._run_id, self._production_var.get())
-            self._show_warnings(warnings, warn_title)
+            v   = self._project._get_version(self._version_id)
+            i   = self._project._get_iteration(v, self._iter_id)
+            run = self._project._get_run(i, self._run_id)
+            warnings, warn_title, is_critical = self._get_warnings(i, run, self._run_id, self._production_var.get())
+            self._show_warnings(warnings, warn_title, is_critical)
             self._window.set_status("Comments saved.")
         except Exception as exc:
             self._show_error("Save Failed", str(exc))
@@ -513,8 +522,9 @@ class RunFrame(ctk.CTkFrame):
 
         self._output_label.configure(
             text="  ".join(dlg.result) if dlg.result else "—")
-        warnings, warn_title = self._get_warnings(i, self._run_id, self._production_var.get())
-        self._show_warnings(warnings, warn_title)
+        run = self._project._get_run(i, self._run_id)
+        warnings, warn_title, is_critical = self._get_warnings(i, run, self._run_id, self._production_var.get())
+        self._show_warnings(warnings, warn_title, is_critical)
         self._window.set_status("Output artifacts updated.")
         self._window.refresh_sidebar()
 
@@ -527,10 +537,11 @@ class RunFrame(ctk.CTkFrame):
                 self._version_id, self._iter_id,
                 self._run_id, is_prod,
             )
-            v = self._project._get_version(self._version_id)
-            i = self._project._get_iteration(v, self._iter_id)
-            warnings, warn_title = self._get_warnings(i, self._run_id, is_prod)
-            self._show_warnings(warnings, warn_title)
+            v   = self._project._get_version(self._version_id)
+            i   = self._project._get_iteration(v, self._iter_id)
+            run = self._project._get_run(i, self._run_id)
+            warnings, warn_title, is_critical = self._get_warnings(i, run, self._run_id, is_prod)
+            self._show_warnings(warnings, warn_title, is_critical)
         except Exception as exc:
             self._show_error("Save Failed", str(exc))
             return
