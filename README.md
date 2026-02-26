@@ -19,7 +19,7 @@ Each entity is persisted as a `version_log.yaml` file in its own folder. Multipl
 
 - **Full hierarchy CRUD** — create and navigate entities, versions, iterations, and runs
 - **Status state machines** — WIP / PRODUCTION / DEPRECATED for versions; WIP / CONVERGED / DIVERGED / PARTIAL / ABORTED for runs
-- **Production artifact validation** — per-solver required file extensions must be present before promoting a run
+- **Production artifact validation** — config-defined file extensions (input deck + output files) are always checked in the run subfolder when a run is marked production; extra per-run extensions can be added via a dedicated edit dialog
 - **Session management** — save/load/save-as `.featrace` session files; dirty-state tracking with save-on-close prompt
 - **Schema migration** — automatic and user-confirmed migration paths when opening older files
 - **File locking** — concurrent write protection via `.lock` files (stale locks auto-cleared after 30 s)

@@ -154,16 +154,25 @@ def _run_subfolder(version_id, iter_id, run_id):
     return f"{version_id}{iter_id}_Run_{run_id:02d}"
 
 def _check_production_artifacts(entity_path, solver_type, filename_base, run_id,
-                                version_id, iter_id):
-    warnings, required = [], REQUIRED_PRODUCTION_ARTIFACTS.get(solver_type, [])
-    base = f"{filename_base}_{run_id:02d}"
+                                version_id, iter_id, output_artifacts=None):
+    warnings = []
+    base     = f"{filename_base}_{run_id:02d}"
+    run_dir  = entity_path / RUNS_FOLDER / _run_subfolder(version_id, iter_id, run_id)
+    required = REQUIRED_PRODUCTION_ARTIFACTS.get(solver_type, [])
+
+    # Always check every artifact defined in config (input deck + config outputs)
     for ext in required:
-        if ext == SOLVER_EXTENSIONS[solver_type]:
-            target = entity_path / RUNS_FOLDER / _run_subfolder(version_id, iter_id, run_id) / f"{base}{ext}"
-        else:
-            target = entity_path / RESULTS_FOLDER / f"{base}{ext}"
+        target = run_dir / f"{base}{ext}"
         if not target.exists():
             warnings.append(f"Missing: {target.relative_to(entity_path)}")
+
+    # Also check any user-defined extras not already covered by config
+    for ext in (output_artifacts or []):
+        if ext not in required:
+            target = run_dir / f"{base}{ext}"
+            if not target.exists():
+                warnings.append(f"Missing: {target.relative_to(entity_path)}")
+
     return warnings
 
 def _check_input_file(entity_path, solver_type, filename_base, run_id,
@@ -305,7 +314,8 @@ class FEAProject:
         if output_artifacts is not None: run.artifacts.output     = output_artifacts
         if is_production is not None:    run.artifacts.is_production = is_production
         warnings = (_check_production_artifacts(
-                        self._path, i.solver_type, i.filename_base, run_id, version_id, iter_id)
+                        self._path, i.solver_type, i.filename_base, run_id, version_id, iter_id,
+                        run.artifacts.output)
                     if run.artifacts.is_production else [])
         self._write(); return warnings
 
@@ -323,7 +333,8 @@ class FEAProject:
         if output_artifacts is not None: run.artifacts.output     = output_artifacts
         if is_production is not None:    run.artifacts.is_production = is_production
         warnings = (_check_production_artifacts(
-                        self._path, i.solver_type, i.filename_base, run_id, version_id, iter_id)
+                        self._path, i.solver_type, i.filename_base, run_id, version_id, iter_id,
+                        run.artifacts.output)
                     if run.artifacts.is_production else [])
         self._write(); return warnings
 
@@ -333,7 +344,8 @@ class FEAProject:
         run = self._get_run(i, run_id)
         run.artifacts.is_production = is_production
         warnings = (_check_production_artifacts(
-                        self._path, i.solver_type, i.filename_base, run_id, version_id, iter_id)
+                        self._path, i.solver_type, i.filename_base, run_id, version_id, iter_id,
+                        run.artifacts.output)
                     if is_production else [])
         self._write(); return warnings
 
