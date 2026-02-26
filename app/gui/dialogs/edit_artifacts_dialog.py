@@ -36,7 +36,7 @@ class EditArtifactsDialog(ctk.CTkToplevel):
         ).grid(row=0, column=0, padx=24, pady=(20, 8), sticky="w")
 
         ctk.CTkLabel(
-            self, text="Extra artifacts beyond config defaults.\nOne extension per line  (e.g. .csv)",
+            self, text="Extra artifacts beyond config defaults.\nOne per line  (e.g. .csv  or  _nl.out)",
             font=ctk.CTkFont(size=12), text_color="gray", justify="left", anchor="w",
         ).grid(row=1, column=0, padx=24, pady=(0, 8), sticky="w")
 
@@ -71,7 +71,7 @@ class EditArtifactsDialog(ctk.CTkToplevel):
         lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
         result = []
         for ln in lines:
-            if not ln.startswith("."):
+            if not ln.startswith((".", "_")):
                 ln = f".{ln}"
             result.append(ln)
         self.result = result

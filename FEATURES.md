@@ -266,6 +266,13 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   re-enabled immediately on toggle-off via `_on_production_toggle`.
   `app/gui/frames/run_frame.py`, `app/gui/dialogs/edit_artifacts_dialog.py` _(2026-02-26)_
 
+- **Extra outputs — underscore-prefix variants** — `EditArtifactsDialog._on_save()` now
+  treats entries starting with `_` as already-formatted suffixes (e.g. `_nl.out` → stored
+  as `_nl.out`, matched as `{base}_nl.out`). Previously any entry not starting with `.`
+  was blindly prefixed with `.`, turning `_nl.out` into `._nl.out`. Hint text updated to
+  show the underscore format as a valid example.
+  `app/gui/dialogs/edit_artifacts_dialog.py` _(2026-02-26)_
+
 - **Promote to Production Enhancement** — Promoting a version to PRODUCTION now opens
   `PromoteToProductionDialog`: a `CTkToplevel` listing all runs grouped by iteration with
   checkboxes. Previously-flagged production runs are pre-checked. On confirm,
@@ -372,14 +379,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Not Implemented
 
 <!-- Sorted easiest → hardest. Format: **Feature** — description. -->
-
-- **Extra outputs — underscore-prefix special cases** — some solvers produce variant output files
-  whose names start with an underscore suffix (e.g. `_nl.out`, `_impl.h3d`) instead of the
-  canonical `{base}{ext}` name. `_check_production_artifacts()` currently does an exact path check;
-  it should fall back to a glob (`{base}*{ext}` or `*{ext}`) when the exact file is absent.
-  _Design decision to investigate: define the glob pattern precisely enough to avoid false matches
-  from other runs in the same folder._
-  `app/core/models.py`
 
 - **Warning on session import** — when a loaded `.featrace` session file references entity paths
   that no longer exist (e.g. shared with another user), the app currently silently stays on the
