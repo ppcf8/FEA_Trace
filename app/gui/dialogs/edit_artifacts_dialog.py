@@ -18,7 +18,8 @@ class EditArtifactsDialog(ctk.CTkToplevel):
         super().__init__(parent)
         self.title("Edit Output Artifacts")
         self.geometry("340x300")
-        self.resizable(False, False)
+        self.minsize(340, 300)
+        self.resizable(True, True)
         self.grab_set()
 
         self.result = None
@@ -27,6 +28,7 @@ class EditArtifactsDialog(ctk.CTkToplevel):
 
     def _build(self, current: list[str]) -> None:
         self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
 
         ctk.CTkLabel(
             self, text="Edit Output Artifacts",
@@ -39,7 +41,7 @@ class EditArtifactsDialog(ctk.CTkToplevel):
         ).grid(row=1, column=0, padx=24, pady=(0, 8), sticky="w")
 
         self._textbox = ctk.CTkTextbox(self, width=280, height=100, wrap="none")
-        self._textbox.grid(row=2, column=0, padx=24, sticky="ew")
+        self._textbox.grid(row=2, column=0, padx=24, sticky="nsew")
         if current:
             self._textbox.insert("1.0", "\n".join(current))
 
