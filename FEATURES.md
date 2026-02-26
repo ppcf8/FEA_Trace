@@ -256,6 +256,23 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   re-enabled immediately on toggle-off via `_on_production_toggle`.
   `app/gui/frames/run_frame.py`, `app/gui/dialogs/edit_artifacts_dialog.py` _(2026-02-26)_
 
+- **Promote to Production Enhancement** — Promoting a version to PRODUCTION now opens
+  `PromoteToProductionDialog`: a `CTkToplevel` listing all runs grouped by iteration with
+  checkboxes. Previously-flagged production runs are pre-checked. On confirm,
+  `FEAProject.promote_version_to_production()` clears all existing `is_production` flags,
+  marks only the selected `(iter_id, run_id)` pairs, records a `promoted_at` timestamp
+  in `VersionRecord`, and returns per-run artifact warnings. The `VersionFrame` shows a
+  "Promoted On" metadata row (hidden when `promoted_at` is empty). On `RunFrame`, the
+  per-run toggle switch is replaced by a read-only label ("Supports production release ✓"
+  / "Not a production run —") when the parent version is not WIP; the Edit and Artifacts
+  Edit buttons are also locked. Reverting a version to WIP (via `update_version_status`)
+  clears `promoted_at` and resets all run `is_production` flags to `False`.
+  Schema bumped `2.2.0 → 2.3.0`; auto-migration adds `promoted_at: ""` to existing
+  version records.
+  `schema.py`, `app/core/migration.py`, `app/core/models.py`,
+  `app/gui/dialogs/promote_to_production_dialog.py`,
+  `app/gui/frames/version_frame.py`, `app/gui/frames/run_frame.py` _(2026-02-27)_
+
 ---
 
 ## Infrastructure
@@ -340,13 +357,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   that no longer exist (e.g. shared with another user), the app currently silently stays on the
   welcome screen. Should prompt a warning dialog and optionally let the user pick a new root folder
   to remap all entity paths in the session.
-
-- **Promote to Production Enhancement** — when a version is promoted to production: (1) record a
-  `promoted_at` timestamp in `VersionRecord` and display it in the UI; (2) show a dialog listing
-  all runs (grouped by iteration) and let the user select which are production runs, replacing the
-  per-run toggle switch with a read-only status field; (3) revert all associated run production
-  flags when the version is reverted to WIP. Requires schema + migration changes, a new selection
-  dialog, and updates to `version_frame.py` and `run_frame.py`.
 
 - **Default Options** — add project-code and entity-name dropdowns (with free-text fallback) to
   the entity dialogs, populated from a user-level settings config file. The config should be

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 from PIL import Image
 
-from schema import RunStatus, RUN_STATUS_TRANSITIONS, SOLVER_EXTENSIONS
+from schema import RunStatus, RUN_STATUS_TRANSITIONS, SOLVER_EXTENSIONS, VersionStatus
 from app.core.models import FEAProject, _check_production_artifacts, _check_input_file, _run_subfolder
 from app.config import RUNS_FOLDER, REQUIRED_PRODUCTION_ARTIFACTS
 from app.gui.theme import add_hint
@@ -252,6 +252,13 @@ class RunFrame(ctk.CTkFrame):
         )
         self._prod_switch.pack(side="left")
 
+        self._prod_readonly_label = ctk.CTkLabel(
+            prod_row,
+            text="—",
+            font=ctk.CTkFont(size=12),
+        )
+        # Initially hidden; shown when version is not WIP
+
     def _build_warning_panel(self) -> None:
         self._warning_panel = ctk.CTkFrame(
             self, fg_color=("#FEF3C7", "#5C3A1E"), corner_radius=8)
@@ -351,8 +358,7 @@ class RunFrame(ctk.CTkFrame):
         if run.comments:
             self._comments_box.insert("1.0", run.comments)
         self._comments_box.configure(state="disabled")
-        self._edit_btn.configure(
-            state="disabled" if run.artifacts.is_production else "normal")
+        # _edit_btn lock is updated after is_version_wip is determined below
 
         self._input_label.configure(
             text="  ".join(run.artifacts.input) if run.artifacts.input else "—")
@@ -365,8 +371,23 @@ class RunFrame(ctk.CTkFrame):
             text="  ".join(all_output) if all_output else "—")
 
         self._production_var.set(run.artifacts.is_production)
+        is_version_wip = (v.status == VersionStatus.WIP)
+        if is_version_wip:
+            self._prod_readonly_label.pack_forget()
+            self._prod_switch.pack(side="left")
+        else:
+            self._prod_switch.pack_forget()
+            prod_text = (
+                "Supports production release  ✓" if run.artifacts.is_production
+                else "Not a production run  —"
+            )
+            self._prod_readonly_label.configure(text=prod_text)
+            self._prod_readonly_label.pack(side="left")
+
+        lock = run.artifacts.is_production or not is_version_wip
+        self._edit_btn.configure(state="disabled" if lock else "normal")
         self._artifacts_edit_btn.configure(
-            state="disabled" if run.artifacts.is_production else "normal")
+            state="disabled" if lock else "normal")
 
         warnings, warn_title = self._get_warnings(i, run_id, run.artifacts.is_production)
         self._show_warnings(warnings, warn_title)
@@ -518,7 +539,8 @@ class RunFrame(ctk.CTkFrame):
         if is_prod:
             self._on_cancel_edit()
         self._edit_btn.configure(state="disabled" if is_prod else "normal")
-        self._artifacts_edit_btn.configure(state="disabled" if is_prod else "normal")
+        self._artifacts_edit_btn.configure(
+            state="disabled" if is_prod else "normal")
 
         self._window.set_status(
             f"Run marked as {'production' if is_prod else 'standard'}.")

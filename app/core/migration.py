@@ -154,3 +154,22 @@ MIGRATIONS["2.1.0"] = (
     "Rename VersionRecord.intent → description.",
     False,
 )
+
+
+# ---------------------------------------------------------------------------
+# Migration: 2.2.0 → 2.3.0
+# Add promoted_at timestamp field to VersionRecord.
+# ---------------------------------------------------------------------------
+
+def _migrate_2_2_0(raw: dict, migrated_by: str) -> dict:
+    for v in raw.get("versions", []):
+        v.setdefault("promoted_at", "")
+    raw["schema_version"] = "2.3.0"
+    return raw
+
+
+MIGRATIONS["2.2.0"] = (
+    _migrate_2_2_0,
+    "Add promoted_at timestamp to VersionRecord.",
+    False,   # minor — auto-applied
+)
