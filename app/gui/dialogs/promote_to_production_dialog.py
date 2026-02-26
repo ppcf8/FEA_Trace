@@ -26,9 +26,10 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
 
         v = project._get_version(version_id)
         self.title(f"Promote {version_id} to Production")
-        self.resizable(False, False)
+        self.resizable(True, True)
         self.grab_set()
         self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
 
         self._build(v)
         self._center()
@@ -57,7 +58,7 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
 
         # Row 2 — scrollable run list
         scroll = ctk.CTkScrollableFrame(self, height=240)
-        scroll.grid(row=2, column=0, sticky="ew", padx=16, pady=(0, 8))
+        scroll.grid(row=2, column=0, sticky="nsew", padx=16, pady=(0, 8))
         scroll.columnconfigure(0, weight=1)
 
         has_runs = False
@@ -180,7 +181,7 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
         self.destroy()
 
     def _center(self) -> None:
-        self.minsize(380, 1)
+        self.minsize(380, 300)
         self.update_idletasks()
         w, h   = self.winfo_width(), self.winfo_height()
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()

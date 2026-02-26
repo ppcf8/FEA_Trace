@@ -25,7 +25,7 @@ class EditVersionDialog(ctk.CTkToplevel):
     def __init__(self, parent, version: VersionRecord):
         super().__init__(parent)
         self.title("Edit Version")
-        self.resizable(False, False)
+        self.resizable(True, True)
         self.grab_set()
 
         self.result = None
@@ -39,12 +39,14 @@ class EditVersionDialog(ctk.CTkToplevel):
 
         height = 440 + (110 if self._system_notes else 0)
         self.geometry(f"520x{height}")
+        self.minsize(520, height)
 
         self._build()
         self._prefill()
 
     def _build(self) -> None:
         self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
 
         ctk.CTkLabel(
             self, text="Edit Version",
@@ -52,8 +54,10 @@ class EditVersionDialog(ctk.CTkToplevel):
         ).grid(row=0, column=0, padx=24, pady=(20, 16), sticky="w")
 
         form = ctk.CTkFrame(self, fg_color="transparent")
-        form.grid(row=1, column=0, sticky="ew", padx=24)
+        form.grid(row=1, column=0, sticky="nsew", padx=24)
         form.columnconfigure(1, weight=1)
+        form.rowconfigure(0, weight=1)
+        form.rowconfigure(1, weight=1)
 
         # Description
         ctk.CTkLabel(
@@ -62,7 +66,7 @@ class EditVersionDialog(ctk.CTkToplevel):
         ).grid(row=0, column=0, padx=(0, 12), pady=(0, 6), sticky="nw")
 
         self._description_box = ctk.CTkTextbox(form, height=80, wrap="word")
-        self._description_box.grid(row=0, column=1, pady=(0, 6), sticky="ew")
+        self._description_box.grid(row=0, column=1, pady=(0, 6), sticky="nsew")
 
         # Notes (user-editable)
         ctk.CTkLabel(
@@ -71,7 +75,7 @@ class EditVersionDialog(ctk.CTkToplevel):
         ).grid(row=1, column=0, padx=(0, 12), pady=(6, 6), sticky="nw")
 
         self._notes_box = ctk.CTkTextbox(form, height=60, wrap="word")
-        self._notes_box.grid(row=1, column=1, pady=(6, 6), sticky="ew")
+        self._notes_box.grid(row=1, column=1, pady=(6, 6), sticky="nsew")
 
         ctk.CTkLabel(
             form, text="One note per line.",

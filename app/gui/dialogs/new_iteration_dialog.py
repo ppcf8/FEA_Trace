@@ -27,7 +27,8 @@ class NewIterationDialog(ctk.CTkToplevel):
         super().__init__(parent)
         self.title("New Iteration")
         self.geometry("540x560")
-        self.resizable(False, False)
+        self.minsize(540, 560)
+        self.resizable(True, True)
         self.grab_set()
 
         self.result = None
@@ -40,6 +41,7 @@ class NewIterationDialog(ctk.CTkToplevel):
 
     def _build(self) -> None:
         self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
 
         ctk.CTkLabel(
             self, text="New Iteration",
@@ -56,8 +58,9 @@ class NewIterationDialog(ctk.CTkToplevel):
         ).grid(row=1, column=0, padx=24, pady=(0, 16), sticky="w")
 
         form = ctk.CTkFrame(self, fg_color="transparent")
-        form.grid(row=2, column=0, sticky="ew", padx=24)
+        form.grid(row=2, column=0, sticky="nsew", padx=24)
         form.columnconfigure(1, weight=1)
+        form.rowconfigure(2, weight=1)
 
         # Solver type
         ctk.CTkLabel(
@@ -98,7 +101,7 @@ class NewIterationDialog(ctk.CTkToplevel):
         ).grid(row=2, column=0, padx=(0, 12), pady=(10, 6), sticky="nw")
 
         self._desc_box = ctk.CTkTextbox(form, height=60, wrap="word")
-        self._desc_box.grid(row=2, column=1, pady=(10, 6), sticky="ew")
+        self._desc_box.grid(row=2, column=1, pady=(10, 6), sticky="nsew")
 
         # Created By
         ctk.CTkLabel(

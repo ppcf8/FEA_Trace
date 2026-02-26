@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import tkinter as tk
 import tkinter.ttk as ttk
+import tkinter.font as tkfont
 import customtkinter as ctk
 from pathlib import Path
 from typing import Optional
@@ -442,13 +443,17 @@ class VersionFrame(ctk.CTkFrame):
 
         popup = ctk.CTkToplevel(self._window)
         popup.title(f"Filter: {self._headings[col][0]}")
-        popup.resizable(False, False)
+        popup.resizable(True, True)
         popup.grab_set()
         popup.columnconfigure(0, weight=1)
         popup.rowconfigure(1, weight=1)
 
         h = min(40 * len(unique_vals) + 130, 400) + (34 if is_date else 0)
-        popup.geometry(f"220x{h}+{x_root}+{y_root}")
+        _f = tkfont.Font(size=11)
+        max_text_w = max((_f.measure(v if v else "(empty)") for v in unique_vals), default=0)
+        popup_w = max(220, max_text_w + 80)
+        popup.geometry(f"{popup_w}x{h}+{x_root}+{y_root}")
+        popup.minsize(180, 150)
 
         quick = ctk.CTkFrame(popup, fg_color="transparent")
         quick.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 2))
