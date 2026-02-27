@@ -415,7 +415,31 @@ class MainWindow(ctk.CTk):
     # Session
     # ------------------------------------------------------------------
 
+    def _prompt_save_current_session(self, action: str = "continuing") -> bool:
+        """Return True if it is safe to discard the current session.
+
+        Prompts the user when there are open entities and the session is dirty
+        or has no backing file.  Returns False if the user cancelled (caller
+        should abort the action).
+        """
+        if self._projects and (self._session.is_dirty or not self._session.has_file):
+            from tkinter import messagebox
+            resp = messagebox.askyesnocancel(
+                "Save Session",
+                f"Save the current session before {action}?",
+                parent=self,
+            )
+            if resp is None:        # Cancel — abort
+                return False
+            if resp:                # Yes — save
+                self._on_save_session()
+                if self._session.is_dirty:  # save-as dialog was cancelled
+                    return False
+        return True
+
     def _on_new_session(self) -> None:
+        if not self._prompt_save_current_session("starting a new session"):
+            return
         # Close all entities
         for path in list(self._projects.keys()):
             self._on_close_entity(path)
@@ -425,6 +449,8 @@ class MainWindow(ctk.CTk):
         self.set_status("New session started.")
 
     def _on_open_session(self) -> None:
+        if not self._prompt_save_current_session("opening another session"):
+            return
         path = filedialog.askopenfilename(
             title="Open Session File",
             initialdir=str(DEFAULT_SESSION_DIR),
@@ -518,19 +544,8 @@ class MainWindow(ctk.CTk):
     # ------------------------------------------------------------------
 
     def _on_closing(self) -> None:
-        if self._projects and (self._session.is_dirty or not self._session.has_file):
-            from tkinter import messagebox
-            resp = messagebox.askyesnocancel(
-                "Save Session",
-                "Save the current session before closing?",
-                parent=self,
-            )
-            if resp is None:      # Cancel — abort close
-                return
-            if resp:              # Yes — save
-                self._on_save_session()
-                if self._session.is_dirty:   # save-as dialog was cancelled
-                    return
+        if not self._prompt_save_current_session("closing"):
+            return
         self.destroy()
 
     def _on_about(self) -> None:
