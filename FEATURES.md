@@ -312,6 +312,21 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   warning; toggling OFF is always permitted.
   `app/gui/dialogs/promote_to_production_dialog.py`, `app/gui/frames/run_frame.py` _(2026-02-26)_
 
+- **Run deletion** — a **Delete Run** button (red, `delete.png` icon) appears in the `RunFrame`
+  header; disabled when `run.artifacts.is_production` is `True`. A **"Delete Run…"** entry is also
+  available via right-click on a run node in the sidebar and via right-click on a row in the Runs
+  table of `IterationFrame` (disabled for production runs). All three surfaces delegate to
+  `MainWindow.request_delete_run()`, which shows a Yes/No confirmation dialog. The dialog message
+  adapts to the storage location: local drives warn that the folder will be **moved to the Recycle
+  Bin**; network / UNC drives warn that it will be **permanently deleted** (no Recycle Bin
+  available). Drive type is detected via `_supports_trash()` using `GetDriveTypeW` (UNC paths are
+  always treated as network). On confirmation, `FEAProject.delete_run()` removes the record from
+  `i.runs` and deletes the run folder: `send2trash` for local drives, `shutil.rmtree` for network
+  drives. The view then navigates to the parent `IterationFrame` and the sidebar subtree is rebuilt.
+  `send2trash>=1.8.0` added to `requirements.txt`.
+  `app/core/models.py`, `app/gui/frames/run_frame.py`, `app/gui/frames/iteration_frame.py`,
+  `app/gui/sidebar.py`, `app/gui/main_window.py`, `requirements.txt` _(2026-02-27)_
+
 ---
 
 ## Infrastructure
@@ -391,16 +406,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Not Implemented
 
 <!-- Sorted easiest → hardest. Format: **Feature** — description. -->
-
-- **Run deletion** — allow a run to be deleted via a Delete button on `RunFrame` and a right-click
-  context menu entry on the run node in the sidebar. Requires a Yes/No confirmation dialog (warn if
-  the run folder exists on disk). A new `delete_run()` method on `FEAProject` removes the record
-  from `i.runs` and optionally deletes the `03_Runs/VxxIxx_Run_##/` subfolder. The sidebar
-  right-click handler currently has no branch for run nodes (`payload[0] == "run"`) — that payload
-  type needs registering. After deletion, navigate back to the parent `IterationFrame` and refresh
-  the sidebar subtree. _Design decision to investigate: whether to delete the run folder from disk,
-  move it to trash, or leave it untouched._
-  `app/core/models.py`, `app/gui/frames/run_frame.py`, `app/gui/sidebar.py`
 
 - **Default Options** — add project-code and entity-name dropdowns (with free-text fallback) to
   the entity dialogs, populated from a user-level settings config file. The config should be

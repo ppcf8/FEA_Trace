@@ -24,6 +24,7 @@ Each entity is persisted as a `version_log.yaml` file in its own folder. Multipl
 - **Session management** — save/load/save-as `.featrace` session files; dirty-state tracking with save-on-close prompt; missing-path warning on open with an optional root-folder remap dialog
 - **Schema migration** — automatic and user-confirmed migration paths when opening older files
 - **File locking** — concurrent write protection via `.lock` files (stale locks auto-cleared after 30 s)
+- **Run deletion** — delete a run via the **Delete Run** button on the Run panel, right-click on a run node in the sidebar, or right-click a row in the Runs table on the Iteration panel; a confirmation dialog warns whether the run folder will be moved to the Recycle Bin (local drives) or permanently deleted (network drives); deletion is blocked for production-marked runs
 - **Run folder auto-creation** — `03_Runs/{version_id}{iter_id}_Run_{run_id:02d}/` subfolder (e.g. `V01I01_Run_01`) created automatically when a new run is added
 - **Run panel clipboard** — copy solver deck filename or full path to clipboard; open run folder in Explorer
 - **Table sorting and filtering** — left-click column headings to sort (▲/▼); right-click for per-column filter popups with cascading Excel-style behaviour and date-only display for date columns; real-time search bar above each table
@@ -83,7 +84,8 @@ fea_trace_app/
 │   │   └── icons/
 │   │       ├── fea_trace.ico            # Application icon
 │   │       ├── copy.png                 # Copy filename / base button icon
-│   │       └── copy_with_path.png       # Copy full path button icon
+│   │       ├── copy_with_path.png       # Copy full path button icon
+│   │       └── delete.png               # Delete Run button icon
 │   ├── core/
 │   │   ├── models.py        # FEAProject — YAML I/O and CRUD
 │   │   ├── session.py       # SessionManager — multi-entity session
@@ -106,3 +108,4 @@ fea_trace_app/
 | `CTkMenuBar` | Menu bar and dropdown menus |
 | `PyYAML` | YAML persistence |
 | `packaging` | Schema version comparison |
+| `send2trash` | Move deleted run folders to the OS Recycle Bin |

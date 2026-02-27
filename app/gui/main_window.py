@@ -18,8 +18,8 @@ from typing import Optional
 
 from schema import SCHEMA_VERSION
 from app.config import (APP_TITLE, APP_VERSION, WINDOW_SIZE, WINDOW_MIN_W, WINDOW_MIN_H,
-                        LOG_FILENAME, DEVELOPER_NAME, DEVELOPER_EMAIL)
-from app.core.models import FEAProject
+                        LOG_FILENAME, DEVELOPER_NAME, DEVELOPER_EMAIL, RUNS_FOLDER)
+from app.core.models import FEAProject, _run_subfolder, _supports_trash
 from app.core.session import SessionManager, DEFAULT_SESSION_DIR
 from app.gui.sidebar import Sidebar
 from app.gui.frames.entity_frame import EntityFrame
@@ -112,6 +112,7 @@ class MainWindow(ctk.CTk):
             self,
             on_select=self._on_sidebar_select,
             on_close=self._on_close_entity,
+            on_delete_run=self.request_delete_run,
         )
         self._sidebar.grid(row=1, column=0, sticky="nsew")
 
@@ -224,6 +225,50 @@ class MainWindow(ctk.CTk):
             self._sidebar.refresh_entity(self._projects[self._active_path])
             if self._current_node:
                 self._sidebar.select_node(*self._current_node)
+
+    def request_delete_run(self, entity_path: str, version_id: str,
+                           iter_id: str, run_id: int) -> None:
+        """Show confirmation dialog and, on approval, delete the run record
+        (and optionally its folder) then navigate to the parent IterationFrame."""
+        from tkinter import messagebox
+
+        proj = self._projects.get(entity_path)
+        if not proj:
+            return
+
+        run_folder = proj.path / RUNS_FOLDER / _run_subfolder(version_id, iter_id, run_id)
+        folder_exists = run_folder.is_dir()
+
+        if folder_exists:
+            if _supports_trash(run_folder):
+                folder_msg = (
+                    f"The run folder  \"{run_folder.name}\"  will be moved to the Recycle Bin."
+                )
+            else:
+                folder_msg = (
+                    f"The run folder  \"{run_folder.name}\"  will be permanently deleted\n"
+                    f"(network drive — no Recycle Bin available)."
+                )
+            msg = f"Delete Run {run_id:02d}?\n\n{folder_msg}"
+        else:
+            msg = (
+                f"Delete Run {run_id:02d}?\n\n"
+                "The run record will be removed from the log.\n"
+                "No folder was found on disk."
+            )
+
+        if not messagebox.askyesno("Delete Run", msg, parent=self):
+            return
+
+        try:
+            proj.delete_run(version_id, iter_id, run_id, trash_folder=folder_exists)
+        except Exception as exc:
+            self._show_error("Delete Run Failed", str(exc))
+            return
+
+        self.show_iteration(entity_path, version_id, iter_id)
+        self.refresh_sidebar()
+        self.set_status(f"Run {run_id:02d} deleted.")
 
     # ------------------------------------------------------------------
     # Entity open / create / close

@@ -22,7 +22,7 @@ from PIL import Image
 from schema import VersionStatus
 from app.config import MODELS_FOLDER
 from app.core.models import FEAProject
-from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, SOLVER_COLORS, add_hint
+from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, SOLVER_COLORS, add_hint, tokens
 from app.gui.hints import ITERATION_TOOLTIP
 
 _ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
@@ -272,7 +272,7 @@ class IterationFrame(ctk.CTkFrame):
 
         self._section = section
         self._table.bind("<<TreeviewSelect>>", self._on_run_select)
-        self._table.bind("<Button-3>", self._on_heading_right_click)
+        self._table.bind("<Button-3>", self._on_table_right_click)
         section.bind("<Configure>", self._resize_columns)
         apply_table_style("Iter.Treeview")
         ctk.AppearanceModeTracker.add(self._on_appearance_change)
@@ -392,16 +392,51 @@ class IterationFrame(ctk.CTkFrame):
             self._update_heading(c)
         self._refresh_table()
 
-    def _on_heading_right_click(self, event) -> None:
-        if self._table.identify_region(event.x, event.y) != "heading":
-            return
-        col_id = self._table.identify_column(event.x)
-        if not col_id or col_id == "#0":
-            return
-        col_name = self._col_order[int(col_id[1:]) - 1]
-        if col_name in _NO_FILTER_COLS:
-            return
-        self._open_filter_popup(col_name, event.x_root, event.y_root)
+    def _on_table_right_click(self, event) -> None:
+        region = self._table.identify_region(event.x, event.y)
+
+        if region == "heading":
+            col_id = self._table.identify_column(event.x)
+            if not col_id or col_id == "#0":
+                return
+            col_name = self._col_order[int(col_id[1:]) - 1]
+            if col_name in _NO_FILTER_COLS:
+                return
+            self._open_filter_popup(col_name, event.x_root, event.y_root)
+
+        elif region == "cell":
+            row_id = self._table.identify_row(event.y)
+            if not row_id or not self._project:
+                return
+            run_id = int(row_id)
+            v   = self._project._get_version(self._version_id)
+            i   = self._project._get_iteration(v, self._iter_id)
+            run = self._project._get_run(i, run_id)
+            is_prod = run.artifacts.is_production
+
+            t    = tokens()
+            menu = tk.Menu(
+                self, tearoff=0,
+                bg=t["bg_secondary"], fg=t["fg"],
+                activebackground=t["bg_selected"],
+                activeforeground=t["fg_selected"],
+                borderwidth=1, relief="flat",
+                font=("Segoe UI", 10),
+            )
+            menu.add_command(
+                label=f"Delete Run {run_id:02d}…",
+                state="disabled" if is_prod else "normal",
+                command=lambda: self._window.request_delete_run(
+                    str(self._project.path),
+                    self._version_id,
+                    self._iter_id,
+                    run_id,
+                ),
+            )
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                menu.grab_release()
 
     def _update_heading(self, col: str) -> None:
         lbl, _     = self._headings[col]

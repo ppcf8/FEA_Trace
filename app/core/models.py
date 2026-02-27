@@ -155,6 +155,28 @@ def _run_subfolder(version_id, iter_id, run_id):
     """Return the run subfolder name, e.g. 'V01I01_Run_01'."""
     return f"{version_id}{iter_id}_Run_{run_id:02d}"
 
+def _supports_trash(path: Path) -> bool:
+    """Return True if *path* is on a drive that supports the OS Recycle Bin.
+
+    Network drives (mapped or UNC) do not have a Recycle Bin on Windows; sending
+    files there via send2trash silently permanently deletes them. This helper
+    detects that case so callers can warn the user and use shutil.rmtree instead.
+    Falls back to True on any error so that send2trash gets the first attempt.
+    """
+    try:
+        import ctypes
+        path_str = str(path)
+        if path_str.startswith("\\\\"):   # UNC path (\\server\share\…)
+            return False
+        drive = Path(path_str).drive      # e.g. 'C:'
+        if not drive:
+            return True
+        DRIVE_REMOTE = 4
+        drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive + "\\")
+        return drive_type != DRIVE_REMOTE
+    except Exception:
+        return True  # unknown — let send2trash attempt and raise if needed
+
 def _check_production_artifacts(entity_path, solver_type, filename_base, run_id,
                                 version_id, iter_id, output_artifacts=None):
     warnings = []
@@ -280,6 +302,31 @@ class FEAProject:
                 warnings[(iter_id, run_id)] = w
         self._write()
         return warnings
+
+    def delete_run(self, version_id: str, iter_id: str, run_id: int,
+                   trash_folder: bool = True) -> None:
+        """Remove a run record from the log and optionally delete its folder.
+
+        When trash_folder is True:
+          - Local drives: folder is sent to the OS Recycle Bin via send2trash.
+          - Network / UNC drives: folder is permanently deleted via shutil.rmtree
+            (network drives have no Recycle Bin).
+        When trash_folder is False the folder is left untouched on disk.
+        """
+        v   = self._get_version(version_id)
+        i   = self._get_iteration(v, iter_id)
+        self._get_run(i, run_id)  # raises ValidationError if not found
+        i.runs = [r for r in i.runs if r.id != run_id]
+        if trash_folder:
+            run_folder = self._path / RUNS_FOLDER / _run_subfolder(version_id, iter_id, run_id)
+            if run_folder.exists():
+                if _supports_trash(run_folder):
+                    from send2trash import send2trash
+                    send2trash(str(run_folder))
+                else:
+                    import shutil
+                    shutil.rmtree(run_folder)
+        self._write()
 
     def update_entity_metadata(self, name, project, owner_team, created_by):
         e = self._log.entity
