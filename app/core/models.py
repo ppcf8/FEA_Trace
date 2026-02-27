@@ -4,8 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from schema import (
-    SCHEMA_VERSION, SolverType, RunStatus, VersionStatus,
-    VERSION_STATUS_TRANSITIONS, RUN_STATUS_TRANSITIONS,
+    SCHEMA_VERSION, SolverType, RunStatus, IterationStatus, VersionStatus,
+    ITERATION_STATUS_TRANSITIONS, VERSION_STATUS_TRANSITIONS, RUN_STATUS_TRANSITIONS,
     REQUIRED_FOLDERS, SOLVER_EXTENSIONS, generate_entity_id,
     next_version_id, next_iteration_id, next_run_id,
     build_filename_base, build_run_filename,
@@ -79,6 +79,8 @@ def _deserialise_iteration(raw):
         created_by=raw["created_by"], created_on=raw["created_on"],
         solver_type=SolverType(raw.get("solver_type", "IMPLICIT")),
         analysis_types=raw.get("analysis_types", []),
+        status=IterationStatus(raw.get("status", "WIP")),
+        notes=raw.get("notes", []),
         runs=[_deserialise_run(r) for r in raw.get("runs",[])])
 
 def _deserialise_version(raw):
@@ -113,6 +115,7 @@ def _serialise_log(log):
     def iter_d(i): return {"id":i.id,"description":i.description,
         "filename_base":i.filename_base,"created_by":i.created_by,"created_on":i.created_on,
         "solver_type":i.solver_type.value,"analysis_types":i.analysis_types,
+        "status":i.status.value,"notes":i.notes,
         "runs":[run_d(r) for r in i.runs]}
     def ver_d(v): return {"id":v.id,"status":v.status.value,"description":v.description,
         "created_by":v.created_by,"created_on":v.created_on,"promoted_at":v.promoted_at,
@@ -271,6 +274,20 @@ class FEAProject:
                 for run in i.runs:
                     run.artifacts.is_production = False
         v.status = new_status
+        self._write()
+
+    def update_iteration_status(self, version_id, iter_id, target, revert_reason=None):
+        v = self._get_version(version_id)
+        i = self._get_iteration(v, iter_id)
+        ok, reason = validate_status_transition(i.status, target)
+        if not ok: raise StatusTransitionError(reason)
+        if target == IterationStatus.WIP and i.status != IterationStatus.WIP:
+            if not revert_reason:
+                raise ValidationError("A reason is required when reverting to WIP.")
+            i.notes.append(
+                f"[REVERTED to WIP from {i.status.value} "
+                f"by {_current_user()} on {_now()}] {revert_reason}")
+        i.status = target
         self._write()
 
     def promote_version_to_production(

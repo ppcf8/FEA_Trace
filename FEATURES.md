@@ -127,6 +127,25 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 ## Status State Machines
 
+- **Iteration deprecated status** — `IterationRecord` gains a `status: IterationStatus`
+  field (`WIP` / `DEPRECATED`) and a `notes: list[str]` audit list. Allowed transitions:
+  `WIP → DEPRECATED` and `DEPRECATED → WIP`; reverting to WIP requires a mandatory reason
+  appended to `iteration.notes` as `[REVERTED to WIP from deprecated by … on …] reason`.
+  `IterationFrame` gains a status badge pill in the header and a Change Status panel in the
+  metadata section (mirrors `VersionFrame`); the Edit button and New Run button are disabled
+  when the iteration is DEPRECATED or the parent version is not WIP. A Notes panel (between
+  metadata and Runs table) displays the revert audit trail. The Runs table right-click
+  "Delete Run" is also disabled for DEPRECATED iterations. The Versions table in
+  `VersionFrame` gains a Status column showing coloured `● deprecated` / plain `WIP` tags.
+  Deprecated iterations are excluded from `PromoteToProductionDialog` (both the checklist
+  and the WIP-run pre-promotion guard). `RevertReasonDialog` generalised with an optional
+  `entity_type` parameter (default `"Version"`). Schema bumped `2.3.0 → 2.4.0`; auto-migration
+  adds `status: "WIP"` and `notes: []` to existing iterations.
+  `schema.py`, `app/core/migration.py`, `app/core/models.py`,
+  `app/gui/frames/iteration_frame.py`, `app/gui/frames/version_frame.py`,
+  `app/gui/sidebar.py`, `app/gui/dialogs/promote_to_production_dialog.py`,
+  `app/gui/dialogs/revert_reason_dialog.py` _(2026-02-27)_
+
 - **Run status** — WIP → CONVERGED / DIVERGED / PARTIAL / ABORTED; reverting
   terminal states back to WIP requires a reason (`RevertReasonDialog`).
   `schema.py`, `app/core/models.py`, `app/gui/dialogs/revert_reason_dialog.py` _(initial)_
@@ -412,16 +431,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   importable from a structured external file and editable directly in the app (Settings menu).
   Entity name list must filter by the selected project code. Introduces a new persistence layer
   (`settings.json` or similar) and a settings editor dialog.
-
-- **Iteration deprecated status** — add a DEPRECATED status to `IterationRecord`, mirroring the
-  existing version status machine. `IterationRecord` currently has no `status` field at all, so
-  this requires a new `IterationStatus` enum, a transition table, a schema bump and migration,
-  serialisation/deserialisation changes, a status button + revert dialog on `IterationFrame`, and
-  sidebar tag updates. _Design decisions to investigate: allowed transitions (WIP → DEPRECATED →
-  WIP?); whether deprecated iterations should be excluded from the Promote dialog; how Edit button
-  locking interacts with iteration status vs. parent version status._
-  `schema.py`, `app/core/migration.py`, `app/core/models.py`, `app/gui/frames/iteration_frame.py`,
-  `app/gui/sidebar.py`, `app/gui/dialogs/` (new revert dialog)
 
 - **Send output — email with stored communication log** — a "Send Output" button (location TBD —
   version or run panel) pre-fills an email (subject derived from version/entity metadata) and opens

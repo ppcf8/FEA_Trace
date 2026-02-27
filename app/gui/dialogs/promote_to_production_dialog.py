@@ -8,7 +8,7 @@ import customtkinter as ctk
 from typing import Optional
 
 from app.core.models import FEAProject
-from schema import RunStatus
+from schema import IterationStatus, RunStatus
 
 
 class PromoteToProductionDialog(ctk.CTkToplevel):
@@ -64,7 +64,7 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
 
         has_runs = False
         for i in v.iterations:
-            if not i.runs:
+            if not i.runs or i.status == IterationStatus.DEPRECATED:
                 continue
             has_runs = True
             # Iteration header
@@ -173,11 +173,12 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
     # ------------------------------------------------------------------
 
     def _on_confirm(self) -> None:
-        # Block promotion if any run is still WIP
+        # Block promotion if any non-deprecated iteration has a WIP run
         v = self._project._get_version(self._version_id)
         wip_labels = [
             f"{i.id} Run {run.id:02d}"
             for i in v.iterations
+            if i.status != IterationStatus.DEPRECATED
             for run in i.runs
             if run.status == RunStatus.WIP
         ]
