@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Optional
 import re
 
-SCHEMA_VERSION = "2.3.0"
+SCHEMA_VERSION = "2.4.0"
 
 class SolverType(str, Enum):
     IMPLICIT = "IMPLICIT"
@@ -21,10 +21,19 @@ class RunStatus(str, Enum):
     PARTIAL   = "partial"
     ABORTED   = "aborted"
 
+class IterationStatus(str, Enum):
+    WIP        = "WIP"
+    DEPRECATED = "deprecated"
+
 class VersionStatus(str, Enum):
     WIP        = "WIP"
     PRODUCTION = "production"
     DEPRECATED = "deprecated"
+
+ITERATION_STATUS_TRANSITIONS: dict[IterationStatus, set[IterationStatus]] = {
+    IterationStatus.WIP:        {IterationStatus.DEPRECATED},
+    IterationStatus.DEPRECATED: {IterationStatus.WIP},
+}
 
 VERSION_STATUS_TRANSITIONS: dict[VersionStatus, set[VersionStatus]] = {
     VersionStatus.WIP:        {VersionStatus.PRODUCTION, VersionStatus.DEPRECATED},
@@ -112,9 +121,11 @@ class IterationRecord:
     created_on:     str
     solver_type:    SolverType = SolverType.IMPLICIT
     analysis_types: list[str] = field(default_factory=list)
+    status:         IterationStatus = IterationStatus.WIP
+    notes:          list[str] = field(default_factory=list)
     runs:           list[RunRecord] = field(default_factory=list)
     MANDATORY = {"id", "description", "filename_base", "created_by", "created_on",
-                 "solver_type", "analysis_types"}
+                 "solver_type", "analysis_types", "status"}
 
 @dataclass
 class VersionRecord:
@@ -145,7 +156,9 @@ class VersionLog:
     entity:         EntityRecord
 
 def validate_status_transition(current, target):
-    if isinstance(current, VersionStatus):
+    if isinstance(current, IterationStatus):
+        table = ITERATION_STATUS_TRANSITIONS
+    elif isinstance(current, VersionStatus):
         table = VERSION_STATUS_TRANSITIONS
     else:
         table = RUN_STATUS_TRANSITIONS

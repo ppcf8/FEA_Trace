@@ -173,3 +173,24 @@ MIGRATIONS["2.2.0"] = (
     "Add promoted_at timestamp to VersionRecord.",
     False,   # minor — auto-applied
 )
+
+
+# ---------------------------------------------------------------------------
+# Migration: 2.3.0 → 2.4.0
+# Add status and notes fields to IterationRecord.
+# ---------------------------------------------------------------------------
+
+def _migrate_2_3_0(raw: dict, migrated_by: str) -> dict:
+    for ver in raw.get("versions", []):
+        for itr in ver.get("iterations", []):
+            itr.setdefault("status", "WIP")
+            itr.setdefault("notes", [])
+    raw["schema_version"] = "2.4.0"
+    return raw
+
+
+MIGRATIONS["2.3.0"] = (
+    _migrate_2_3_0,
+    "Add status and notes fields to IterationRecord.",
+    False,   # minor — auto-applied
+)

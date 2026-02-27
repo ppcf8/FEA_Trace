@@ -1,9 +1,9 @@
 """
 dialogs/revert_reason_dialog.py
 =================================
-Shown when a user attempts to revert a Version status back to WIP
-from PRODUCTION or DEPRECATED. Requires a non-empty reason which is
-automatically appended to the version's notes list with a timestamp.
+Shown when a user attempts to revert a Version or Iteration status back to WIP
+from DEPRECATED. Requires a non-empty reason which is automatically appended
+to the entity's notes list with a timestamp.
 """
 
 from __future__ import annotations
@@ -15,39 +15,40 @@ class RevertReasonDialog(ctk.CTkToplevel):
     """
     Parameters
     ----------
-    parent     : MainWindow
-    version_id : displayed in the dialog title for clarity
+    parent      : MainWindow
+    entity_id   : displayed in the dialog title for clarity
+    entity_type : "Version" (default) or "Iteration"
 
     Attributes
     ----------
     result : str | None  — the reason text, or None if cancelled
     """
 
-    def __init__(self, parent, version_id: str):
+    def __init__(self, parent, entity_id: str, entity_type: str = "Version"):
         super().__init__(parent)
-        self.title(f"Revert {version_id} to WIP")
+        self.title(f"Revert {entity_id} to WIP")
         self.geometry("480x280")
         self.resizable(False, False)
         self.grab_set()
 
         self.result: str | None = None
-        self._build(version_id)
+        self._build(entity_id, entity_type)
 
-    def _build(self, version_id: str) -> None:
+    def _build(self, entity_id: str, entity_type: str) -> None:
         self.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             self,
-            text=f"Revert {version_id} to WIP",
+            text=f"Revert {entity_id} to WIP",
             font=ctk.CTkFont(size=18, weight="bold"),
         ).grid(row=0, column=0, padx=24, pady=(20, 8), sticky="w")
 
         ctk.CTkLabel(
             self,
             text=(
-                "This action will revert the version status to WIP.\n"
+                f"This action will revert the {entity_type.lower()} status to WIP.\n"
                 "A mandatory reason must be provided — it will be\n"
-                "permanently appended to the version notes."
+                f"permanently appended to the {entity_type.lower()} notes."
             ),
             font=ctk.CTkFont(size=12),
             justify="left",

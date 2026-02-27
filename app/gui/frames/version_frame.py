@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional
 from PIL import Image
 
-from schema import VersionStatus, VERSION_STATUS_TRANSITIONS
+from schema import IterationStatus, VersionStatus, VERSION_STATUS_TRANSITIONS
 from app.core.models import FEAProject
 from app.gui.theme import apply_table_style, make_scrollbar, add_hint
 from app.gui.hints import VERSION_TOOLTIP
@@ -34,17 +34,23 @@ _SOLVER_BADGE = {
 
 _COL_WEIGHTS = {
     "id":             1,
+    "status":         2,
     "solver_type":    2,
     "analysis_types": 3,
     "description":    7,
     "runs":           1,
     "created_by":     3,
     "created_on":     3,
-}  # total = 20 units
+}  # total = 22 units
 
 _NO_FILTER_COLS   = frozenset({"description", "runs"})
 _DATE_COLS        = frozenset({"created_on"})
 _MULTI_VALUE_COLS = frozenset({"analysis_types"})
+
+_ITER_STATUS_COLORS = {
+    "WIP":        "#4A90D9",
+    "deprecated": "#888888",
+}
 
 
 class VersionFrame(ctk.CTkFrame):
@@ -188,7 +194,7 @@ class VersionFrame(ctk.CTkFrame):
             command=lambda: self._search_var.set(""),
         ).grid(row=0, column=2)
 
-        cols = ("id", "solver_type", "analysis_types",
+        cols = ("id", "status", "solver_type", "analysis_types",
                 "description", "runs", "created_by", "created_on")
         self._table = ttk.Treeview(
             section, columns=cols, show="headings",
@@ -198,6 +204,7 @@ class VersionFrame(ctk.CTkFrame):
 
         headings = {
             "id":             ("ID",          "center"),
+            "status":         ("Status",      "w"),
             "solver_type":    ("Solver",      "w"),
             "analysis_types": ("Analysis",    "w"),
             "description":    ("Description", "w"),
@@ -207,6 +214,9 @@ class VersionFrame(ctk.CTkFrame):
         }
         self._headings = headings
         self._col_order = tuple(_COL_WEIGHTS.keys())
+
+        for status, color in _ITER_STATUS_COLORS.items():
+            self._table.tag_configure(f"iter_status_{status}", foreground=color)
 
         for col, (heading, anchor) in headings.items():
             self._table.heading(col, text=heading, anchor=anchor,
@@ -333,16 +343,19 @@ class VersionFrame(ctk.CTkFrame):
     def _populate_table(self, v) -> None:
         self._all_rows = []
         for i in v.iterations:
-            types  = ", ".join(i.analysis_types)
-            desc   = i.description.strip().replace("\n", " ")
+            types       = ", ".join(i.analysis_types)
+            desc        = i.description.strip().replace("\n", " ")
             if len(desc) > 55:
                 desc = desc[:52] + "…"
-            solver = _SOLVER_BADGE.get(i.solver_type.value, i.solver_type.value)
+            solver      = _SOLVER_BADGE.get(i.solver_type.value, i.solver_type.value)
+            status_val  = i.status.value
+            status_text = f"●  {status_val}" if status_val != "WIP" else "WIP"
+            tag         = f"iter_status_{status_val}"
             self._all_rows.append({
                 "iid":    i.id,
-                "values": (i.id, solver, types, desc,
+                "values": (i.id, status_text, solver, types, desc,
                            len(i.runs), i.created_by, i.created_on),
-                "tags":   (),
+                "tags":   (tag,),
             })
         self._refresh_table()
 

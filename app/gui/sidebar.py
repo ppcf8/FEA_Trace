@@ -62,6 +62,10 @@ _STATUS_TAG = {
     "aborted":    "tag_aborted",
 }
 
+_ITER_STATUS_TAG = {
+    "deprecated": "tag_deprecated",
+}
+
 
 # ---------------------------------------------------------------------------
 # Sidebar
@@ -296,10 +300,15 @@ class Sidebar(ctk.CTkFrame):
             self._node_map[v_node] = ("version", entity_path, v.id)
 
             for i in v.iterations:
+                iter_status_val = i.status.value
+                iter_tag        = _ITER_STATUS_TAG.get(iter_status_val, "")
+                depr_suffix     = "  ● Deprecated" if iter_status_val == "deprecated" else ""
+                iter_tags       = (iter_tag,) if iter_tag else ()
                 i_node = self._tree.insert(
                     v_node, "end",
-                    text=f"  {i.id}  {i.solver_type.value}",
+                    text=f"  {i.id}  {i.solver_type.value}{depr_suffix}",
                     open=True,
+                    tags=iter_tags,
                 )
                 self._node_map[i_node] = ("iteration", entity_path, v.id, i.id)
 

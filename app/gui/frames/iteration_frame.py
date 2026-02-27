@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Optional
 from PIL import Image
 
-from schema import VersionStatus
+from schema import IterationStatus, ITERATION_STATUS_TRANSITIONS, VersionStatus
 from app.config import MODELS_FOLDER
 from app.core.models import FEAProject
 from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, SOLVER_COLORS, add_hint, tokens
@@ -33,6 +33,16 @@ _IMG_EDIT  = ctk.CTkImage(Image.open(_ICONS_DIR / "edit.png"), size=(16, 16))
 # ---------------------------------------------------------------------------
 # Column weight map (proportional autofit)
 # ---------------------------------------------------------------------------
+
+_ITER_STATUS_BADGE = {
+    "WIP":        ("●  WIP",        "#4A90D9"),
+    "deprecated": ("●  Deprecated", "#888888"),
+}
+
+_ITER_STATUS_LABELS = {
+    IterationStatus.DEPRECATED: ("Mark Deprecated", "#888888"),
+    IterationStatus.WIP:        ("Revert to WIP",   "#4A90D9"),
+}
 
 _COL_WEIGHTS = {
     "id":         1,
@@ -79,10 +89,11 @@ class IterationFrame(ctk.CTkFrame):
 
     def _build(self) -> None:
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(2, weight=1)   # run table expands
+        self.rowconfigure(3, weight=1)   # run table expands
 
         self._build_header()
         self._build_metadata_panel()
+        self._build_notes_panel()
         self._build_run_table()
         self._build_action_bar()
 
@@ -108,7 +119,14 @@ class IterationFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=13, weight="bold"),
             corner_radius=6, anchor="center", padx=12, pady=4,
         )
-        self._solver_label.grid(row=0, column=1, sticky="e")
+        self._solver_label.grid(row=0, column=1, sticky="e", padx=(0, 8))
+
+        self._status_badge = ctk.CTkLabel(
+            title_row, text="",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            corner_radius=6, anchor="center", padx=12, pady=4,
+        )
+        self._status_badge.grid(row=0, column=2, sticky="e")
 
         # Filename base pill — read-only, copy button alongside
         base_frame = ctk.CTkFrame(hdr, fg_color="transparent")
@@ -151,14 +169,6 @@ class IterationFrame(ctk.CTkFrame):
         panel = ctk.CTkFrame(self)
         panel.grid(row=1, column=0, sticky="ew", padx=24, pady=16)
         panel.columnconfigure(1, weight=1)
-
-        self._edit_btn = ctk.CTkButton(
-            panel, image=_IMG_EDIT, text="Edit", compound="left",
-            width=90, height=28,
-            font=ctk.CTkFont(size=12),
-            command=self._on_edit_iteration,
-        )
-        self._edit_btn.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=8)
 
         # Description
         ctk.CTkLabel(
@@ -206,9 +216,32 @@ class IterationFrame(ctk.CTkFrame):
                      padx=(0, 24), pady=(0, 12), sticky="w")
             self._meta[key] = val
 
+        # Transition buttons + Edit (right column)
+        self._transition_frame = ctk.CTkFrame(panel, fg_color="transparent")
+        self._transition_frame.grid(row=0, column=4, rowspan=3,
+                                    padx=(0, 16), pady=12, sticky="ne")
+
+    def _build_notes_panel(self) -> None:
+        panel = ctk.CTkFrame(self, fg_color="transparent")
+        panel.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 8))
+        panel.columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            panel, text="Notes",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            anchor="nw", width=110,
+        ).grid(row=0, column=0, padx=(0, 4), sticky="nw")
+
+        self._notes_label = ctk.CTkLabel(
+            panel, text="",
+            font=ctk.CTkFont(size=12),
+            anchor="nw", justify="left", wraplength=600,
+        )
+        self._notes_label.grid(row=0, column=1, sticky="w")
+
     def _build_run_table(self) -> None:
         section = ctk.CTkFrame(self, fg_color="transparent")
-        section.grid(row=2, column=0, sticky="nsew", padx=24, pady=(0, 8))
+        section.grid(row=3, column=0, sticky="nsew", padx=24, pady=(0, 8))
         section.columnconfigure(0, weight=1)
         section.rowconfigure(2, weight=1)
 
@@ -279,7 +312,7 @@ class IterationFrame(ctk.CTkFrame):
 
     def _build_action_bar(self) -> None:
         bar = ctk.CTkFrame(self, fg_color="transparent")
-        bar.grid(row=3, column=0, sticky="ew", padx=24, pady=(4, 20))
+        bar.grid(row=4, column=0, sticky="ew", padx=24, pady=(4, 20))
 
         self._new_run_btn = ctk.CTkButton(
             bar,
@@ -328,9 +361,23 @@ class IterationFrame(ctk.CTkFrame):
         self._meta["_created_by"].configure(text=i.created_by)
         self._meta["_created_on"].configure(text=i.created_on)
 
-        is_editable = (v.status == VersionStatus.WIP)
-        self._edit_btn.configure(state="normal" if is_editable else "disabled")
+        notes_text = "\n".join(f"• {n}" for n in i.notes) if i.notes else "—"
+        self._notes_label.configure(text=notes_text)
+
+        # Status badge
+        badge_text, badge_color = _ITER_STATUS_BADGE.get(
+            i.status.value, (i.status.value, "#888888"))
+        self._status_badge.configure(
+            text=f"  {badge_text}  ",
+            fg_color=badge_color, text_color="#FFFFFF",
+        )
+
+        is_version_wip = (v.status == VersionStatus.WIP)
+        is_iter_wip    = (i.status == IterationStatus.WIP)
+        is_editable    = is_version_wip and is_iter_wip
         self._new_run_btn.configure(state="normal" if is_editable else "disabled")
+
+        self._populate_transition_buttons(i.status, is_version_wip)
 
         self._all_rows     = []
         self._sort_col     = None
@@ -340,6 +387,72 @@ class IterationFrame(ctk.CTkFrame):
         for col in self._col_order:
             self._update_heading(col)
         self._populate_table(i)
+
+    def _populate_transition_buttons(
+            self, current: IterationStatus, is_version_wip: bool) -> None:
+        for w in self._transition_frame.winfo_children():
+            w.destroy()
+
+        self._edit_btn = ctk.CTkButton(
+            self._transition_frame,
+            image=_IMG_EDIT, text="Edit", compound="left",
+            width=90, height=28,
+            font=ctk.CTkFont(size=12),
+            state="normal" if (is_version_wip and current == IterationStatus.WIP)
+                           else "disabled",
+            command=self._on_edit_iteration,
+        )
+        self._edit_btn.pack(anchor="e", pady=(0, 8))
+
+        if not is_version_wip:
+            return
+
+        allowed = ITERATION_STATUS_TRANSITIONS.get(current, set())
+        if not allowed:
+            return
+
+        ctk.CTkLabel(
+            self._transition_frame,
+            text="Change Status",
+            font=ctk.CTkFont(size=11, weight="bold"),
+        ).pack(anchor="e", pady=(0, 4))
+
+        for target in allowed:
+            label, color = _ITER_STATUS_LABELS.get(target, (target.value.title(), None))
+            kwargs = dict(
+                text=label, width=160, height=30,
+                font=ctk.CTkFont(size=12),
+                command=lambda t=target: self._on_iter_status_change(t),
+            )
+            if color:
+                kwargs["fg_color"] = color
+            ctk.CTkButton(self._transition_frame, **kwargs).pack(anchor="e", pady=2)
+
+    def _on_iter_status_change(self, target: IterationStatus) -> None:
+        if not all([self._project, self._version_id, self._iter_id]):
+            return
+
+        revert_reason = None
+        if target == IterationStatus.WIP:
+            from app.gui.dialogs.revert_reason_dialog import RevertReasonDialog
+            dlg = RevertReasonDialog(self._window, self._iter_id, "Iteration")
+            self._window.wait_window(dlg)
+            if dlg.result is None:
+                return
+            revert_reason = dlg.result
+
+        try:
+            self._project.update_iteration_status(
+                self._version_id, self._iter_id, target,
+                revert_reason=revert_reason,
+            )
+        except Exception as exc:
+            self._show_error("Status Change Failed", str(exc))
+            return
+
+        self._window.refresh_sidebar()
+        self._window.set_status(f"Iteration {self._iter_id} → {target.value}")
+        self.load(self._project, self._version_id, self._iter_id)
 
     def _populate_table(self, i) -> None:
         self._all_rows = []
@@ -412,7 +525,8 @@ class IterationFrame(ctk.CTkFrame):
             v   = self._project._get_version(self._version_id)
             i   = self._project._get_iteration(v, self._iter_id)
             run = self._project._get_run(i, run_id)
-            is_prod = run.artifacts.is_production
+            is_prod      = run.artifacts.is_production
+            is_iter_depr = (i.status == IterationStatus.DEPRECATED)
 
             t    = tokens()
             menu = tk.Menu(
@@ -425,7 +539,7 @@ class IterationFrame(ctk.CTkFrame):
             )
             menu.add_command(
                 label=f"Delete Run {run_id:02d}…",
-                state="disabled" if is_prod else "normal",
+                state="disabled" if (is_prod or is_iter_depr) else "normal",
                 command=lambda: self._window.request_delete_run(
                     str(self._project.path),
                     self._version_id,
