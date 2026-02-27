@@ -21,6 +21,7 @@ _ICONS_DIR     = Path(__file__).parent.parent.parent / "assets" / "icons"
 _IMG_COPY      = ctk.CTkImage(Image.open(_ICONS_DIR / "copy.png"),           size=(18, 18))
 _IMG_COPY_PATH = ctk.CTkImage(Image.open(_ICONS_DIR / "copy_with_path.png"), size=(18, 18))
 _IMG_EDIT      = ctk.CTkImage(Image.open(_ICONS_DIR / "edit.png"),           size=(16, 16))
+_IMG_DELETE    = ctk.CTkImage(Image.open(_ICONS_DIR / "delete.png"),         size=(16, 16))
 
 
 _STATUS_BADGE = {
@@ -89,7 +90,16 @@ class RunFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=13, weight="bold"),
             corner_radius=6, padx=12, pady=4,
         )
-        self._status_badge.grid(row=0, column=1, sticky="e")
+        self._status_badge.grid(row=0, column=1, sticky="e", padx=(0, 8))
+
+        self._delete_btn = ctk.CTkButton(
+            title_row, image=_IMG_DELETE, text="Delete Run", compound="left",
+            width=120, height=30,
+            font=ctk.CTkFont(size=12),
+            fg_color="#B91C1C", hover_color="#991B1B",
+            command=self._on_delete_run,
+        )
+        self._delete_btn.grid(row=0, column=2, sticky="e")
 
         fname_row = ctk.CTkFrame(hdr, fg_color="transparent")
         fname_row.grid(row=1, column=0, sticky="ew", pady=(10, 0))
@@ -396,6 +406,8 @@ class RunFrame(ctk.CTkFrame):
         self._edit_btn.configure(state="disabled" if lock else "normal")
         self._artifacts_edit_btn.configure(
             state="disabled" if lock else "normal")
+        self._delete_btn.configure(
+            state="disabled" if run.artifacts.is_production else "normal")
 
         warnings, warn_title, is_critical = self._get_warnings(i, run, run_id, run.artifacts.is_production)
         self._show_warnings(warnings, warn_title, is_critical)
@@ -567,6 +579,7 @@ class RunFrame(ctk.CTkFrame):
         self._edit_btn.configure(state="disabled" if is_prod else "normal")
         self._artifacts_edit_btn.configure(
             state="disabled" if is_prod else "normal")
+        self._delete_btn.configure(state="disabled" if is_prod else "normal")
 
         self._window.set_status(
             f"Run marked as {'production' if is_prod else 'standard'}.")
@@ -591,6 +604,16 @@ class RunFrame(ctk.CTkFrame):
         self._window.set_status(f"Run {self._run_id:02d} → {target.value}")
         self.load(self._project, self._version_id,
                   self._iter_id, self._run_id)
+
+    def _on_delete_run(self) -> None:
+        if not self._project or self._run_id is None:
+            return
+        self._window.request_delete_run(
+            str(self._project.path),
+            self._version_id,
+            self._iter_id,
+            self._run_id,
+        )
 
     def _show_error(self, title: str, message: str) -> None:
         from tkinter import messagebox

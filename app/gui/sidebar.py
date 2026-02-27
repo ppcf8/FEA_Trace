@@ -73,10 +73,11 @@ class Sidebar(ctk.CTkFrame):
 
     Parameters
     ----------
-    master      : parent widget
-    on_select   : callback(node_type, *ids, entity_path)
-    on_close    : callback(entity_path) — called when user closes an entity
-    width       : fixed pixel width
+    master          : parent widget
+    on_select       : callback(node_type, *ids, entity_path)
+    on_close        : callback(entity_path) — called when user closes an entity
+    on_delete_run   : callback(entity_path, version_id, iter_id, run_id)
+    width           : fixed pixel width
     """
 
     _SIDEBAR_WIDTH = 240
@@ -84,8 +85,9 @@ class Sidebar(ctk.CTkFrame):
     def __init__(
         self,
         master,
-        on_select: Callable[..., None],
-        on_close:  Callable[[str], None],
+        on_select:      Callable[..., None],
+        on_close:       Callable[[str], None],
+        on_delete_run:  Callable[[str, str, str, int], None],
         width: int = _SIDEBAR_WIDTH,
     ):
         super().__init__(master, width=width, corner_radius=0,
@@ -93,8 +95,9 @@ class Sidebar(ctk.CTkFrame):
         self.pack_propagate(False)
         self.grid_propagate(False)
 
-        self._on_select = on_select
-        self._on_close  = on_close
+        self._on_select     = on_select
+        self._on_close      = on_close
+        self._on_delete_run = on_delete_run
 
         # node_id → (node_type, ...)
         self._node_map:     dict[str, tuple] = {}
@@ -433,6 +436,14 @@ class Sidebar(ctk.CTkFrame):
             menu.add_command(label="Collapse", command=lambda: self._set_subtree_open(item, False))
             menu.add_separator()
             menu.add_command(label="Close Entity", command=lambda: self._on_close(entity_path))
+        elif payload and payload[0] == "run":
+            # Clicked on a run node — run-level actions
+            _, entity_path, v_id, i_id, run_id = payload
+            menu.add_command(
+                label="Delete Run…",
+                command=lambda ep=entity_path, v=v_id, i=i_id, r=run_id:
+                    self._on_delete_run(ep, v, i, r),
+            )
         else:
             # Clicked on empty space or a child node — global actions
             menu.add_command(label="Expand All",   command=self._expand_all)

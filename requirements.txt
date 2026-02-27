@@ -3,3 +3,4 @@ Pillow>=10.0.0
 PyYAML>=6.0
 packaging>=23.0
 CTkMenuBar
+send2trash>=1.8.0
