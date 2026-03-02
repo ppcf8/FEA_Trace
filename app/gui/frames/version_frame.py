@@ -14,7 +14,8 @@ from PIL import Image
 from schema import IterationStatus, VersionStatus, VERSION_STATUS_TRANSITIONS
 from app.core.models import FEAProject
 from app.gui.theme import (apply_table_style, make_scrollbar, add_hint,
-                           AUDIT_NOTE_PREFIXES, parse_audit_note)
+                           AUDIT_NOTE_PREFIXES, parse_audit_note,
+                           autofit_tree_columns)
 from app.gui.hints import VERSION_TOOLTIP
 
 _ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
@@ -165,13 +166,13 @@ class VersionFrame(ctk.CTkFrame):
         self._audit_tree = ttk.Treeview(
             self._audit_panel, style="VersionAudit.Treeview",
             columns=("event", "date", "by", "details"),
-            show="headings", height=3,
+            show="headings", height=7,
         )
         self._audit_tree.heading("event",   text="Event",   anchor="w")
         self._audit_tree.heading("date",    text="Date",    anchor="w")
         self._audit_tree.heading("by",      text="By",      anchor="w")
         self._audit_tree.heading("details", text="Details", anchor="w")
-        self._audit_tree.column("event",   width=80,  minwidth=60,  stretch=False, anchor="w")
+        self._audit_tree.column("event",   width=160, minwidth=100, stretch=False, anchor="w")
         self._audit_tree.column("date",    width=140, minwidth=100, stretch=False, anchor="w")
         self._audit_tree.column("by",      width=90,  minwidth=60,  stretch=False, anchor="w")
         self._audit_tree.column("details", width=200, minwidth=80,  stretch=True,  anchor="w")
@@ -300,8 +301,8 @@ class VersionFrame(ctk.CTkFrame):
         if system_notes:
             for note in reversed(system_notes):
                 self._audit_tree.insert("", "end", values=parse_audit_note(note))
-            self._audit_tree.configure(height=min(len(system_notes), 4))
-            if len(system_notes) > 4:
+            autofit_tree_columns(self._audit_tree)
+            if len(system_notes) > 7:
                 self._audit_sb.grid(row=0, column=1, sticky="ns")
             else:
                 self._audit_sb.grid_remove()

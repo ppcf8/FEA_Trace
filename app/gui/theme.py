@@ -281,11 +281,53 @@ def parse_audit_note(note: str) -> tuple[str, str, str, str]:
     """
     m = re.match(r'\[Promoted to Production\] on (.+?) by (.+?) — Runs: (.+)', note)
     if m:
-        return "Promoted", m.group(1), m.group(2), m.group(3)
+        return "Promoted to Production", m.group(1), m.group(2), m.group(3)
     m = re.match(r'\[Reverted to WIP\] from (\S+) on (.+?) by (.+?) — (.+)', note)
     if m:
-        return "Reverted", m.group(2), m.group(3), f"from {m.group(1)} — {m.group(4)}"
+        return "Reverted to WIP", m.group(2), m.group(3), f"from {m.group(1)} — {m.group(4)}"
     m = re.match(r'\[REVERTED to WIP from (\S+) by (.+?) on (.+?)\] (.+)', note)
     if m:
-        return "Reverted", m.group(3), m.group(2), f"from {m.group(1)} — {m.group(4)}"
-    return "System", "", "", note
+        return "Reverted to WIP", m.group(3), m.group(2), f"from {m.group(1)} — {m.group(4)}"
+    return "System Note", "", "", note
+
+
+def parse_audit_note_extended(note: str) -> tuple[str, str, str, str, str]:
+    """
+    Parse a system audit note into (event, date, by, runs, details).
+    Used by frame tables that show a dedicated Runs column.
+
+    Promoted: runs = "01, 02"  details = ""
+    Reverted: runs = ""        details = "from {status} — {reason}"
+    """
+    m = re.match(r'\[Promoted to Production\] on (.+?) by (.+?) — Runs: (.+)', note)
+    if m:
+        runs = ", ".join(r.strip().replace("Run ", "").strip()
+                         for r in m.group(3).split(","))
+        return "Promoted to Production", m.group(1), m.group(2), runs, ""
+    m = re.match(r'\[Reverted to WIP\] from (\S+) on (.+?) by (.+?) — (.+)', note)
+    if m:
+        return "Reverted to WIP", m.group(2), m.group(3), "", f"from {m.group(1)} — {m.group(4)}"
+    m = re.match(r'\[REVERTED to WIP from (\S+) by (.+?) on (.+?)\] (.+)', note)
+    if m:
+        return "Reverted to WIP", m.group(3), m.group(2), "", f"from {m.group(1)} — {m.group(4)}"
+    return "System Note", "", "", "", note
+
+
+def autofit_tree_columns(tree: ttk.Treeview) -> None:
+    """
+    Resize each column to fit its heading and all row values.
+    The last column keeps stretch=True to fill remaining space;
+    all others are fixed at their measured width.
+    """
+    import tkinter.font as tkfont
+    head_font = tkfont.Font(family="Segoe UI", size=11, weight="bold")
+    cell_font = tkfont.Font(family="Segoe UI", size=11)
+    pad = 20
+    cols = list(tree["columns"])
+    for idx, col in enumerate(cols):
+        col_w = head_font.measure(tree.heading(col)["text"]) + pad
+        for iid in tree.get_children():
+            w = cell_font.measure(str(tree.set(iid, col))) + pad
+            col_w = max(col_w, w)
+        is_last = (idx == len(cols) - 1)
+        tree.column(col, width=col_w, minwidth=max(col_w, 40), stretch=is_last)

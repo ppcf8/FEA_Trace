@@ -152,7 +152,7 @@ class EditIterationDialog(ctk.CTkToplevel):
             self._audit_tree.heading("date",    text="Date",    anchor="w")
             self._audit_tree.heading("by",      text="By",      anchor="w")
             self._audit_tree.heading("details", text="Details", anchor="w")
-            self._audit_tree.column("event",   width=80,  minwidth=60,  stretch=False, anchor="w")
+            self._audit_tree.column("event",   width=160, minwidth=100, stretch=False, anchor="w")
             self._audit_tree.column("date",    width=135, minwidth=100, stretch=False, anchor="w")
             self._audit_tree.column("by",      width=75,  minwidth=50,  stretch=False, anchor="w")
             self._audit_tree.column("details", width=150, minwidth=80,  stretch=True,  anchor="w")
