@@ -15,7 +15,7 @@ from schema import IterationStatus, VersionStatus, VERSION_STATUS_TRANSITIONS
 from app.core.models import FEAProject
 from app.gui.theme import (apply_table_style, make_scrollbar, add_hint,
                            AUDIT_NOTE_PREFIXES, parse_audit_note,
-                           autofit_tree_columns)
+                           autofit_tree_columns, show_audit_detail_popup)
 from app.gui.hints import VERSION_TOOLTIP
 
 _ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
@@ -181,7 +181,23 @@ class VersionFrame(ctk.CTkFrame):
         self._audit_sb = make_scrollbar(self._audit_panel, "vertical", self._audit_tree.yview)
         self._audit_tree.configure(yscrollcommand=self._audit_sb.set)
 
+        self._audit_tree.bind("<Double-1>", self._on_audit_double_click)
+
         self._audit_panel.grid_remove()  # hidden until notes exist
+
+    def _on_audit_double_click(self, event) -> None:
+        tree = self._audit_tree
+        if tree.identify_region(event.x, event.y) != "cell":
+            return
+        iid = tree.focus()
+        if not iid:
+            return
+        values = tree.item(iid, "values")
+        show_audit_detail_popup(
+            self._window,
+            ["Event", "Date", "By", "Details"],
+            values,
+        )
 
     def _build_iter_table(self) -> None:
         section = ctk.CTkFrame(self, fg_color="transparent")

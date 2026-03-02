@@ -24,7 +24,8 @@ from app.config import MODELS_FOLDER
 from app.core.models import FEAProject
 from app.gui.theme import (apply_table_style, make_scrollbar, STATUS_COLORS,
                            SOLVER_COLORS, add_hint, tokens,
-                           parse_audit_note_extended, autofit_tree_columns)
+                           parse_audit_note_extended, autofit_tree_columns,
+                           show_audit_detail_popup)
 from app.gui.hints import ITERATION_TOOLTIP
 
 _ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
@@ -280,6 +281,22 @@ class IterationFrame(ctk.CTkFrame):
 
         self._audit_sb = make_scrollbar(self._audit_panel, "vertical", self._audit_tree.yview)
         self._audit_tree.configure(yscrollcommand=self._audit_sb.set)
+
+        self._audit_tree.bind("<Double-1>", self._on_audit_double_click)
+
+    def _on_audit_double_click(self, event) -> None:
+        tree = self._audit_tree
+        if tree.identify_region(event.x, event.y) != "cell":
+            return
+        iid = tree.focus()
+        if not iid:
+            return
+        values = tree.item(iid, "values")
+        show_audit_detail_popup(
+            self._window,
+            ["Event", "Date", "By", "Runs", "Details"],
+            values,
+        )
 
     def _build_run_table(self) -> None:
         section = ctk.CTkFrame(self, fg_color="transparent")

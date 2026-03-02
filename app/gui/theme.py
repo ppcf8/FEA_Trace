@@ -313,6 +313,45 @@ def parse_audit_note_extended(note: str) -> tuple[str, str, str, str, str]:
     return "System Note", "", "", "—", note
 
 
+def show_audit_detail_popup(parent, col_names: list[str], values: tuple) -> None:
+    """
+    Open a read-only popup showing all fields of one audit log row.
+    The last field named "Details" is rendered as a wrapped textbox.
+    Call from a <Double-1> handler on an audit Treeview.
+    """
+    popup = ctk.CTkToplevel(parent)
+    popup.title("Audit Entry")
+    popup.grab_set()
+    popup.resizable(True, False)
+    popup.geometry("520x300")
+
+    form = ctk.CTkFrame(popup, fg_color="transparent")
+    form.pack(fill="both", expand=True, padx=20, pady=16)
+    form.columnconfigure(1, weight=1)
+
+    for row_idx, (label, val) in enumerate(zip(col_names, values)):
+        ctk.CTkLabel(
+            form, text=f"{label}:",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            anchor="e", width=70,
+        ).grid(row=row_idx, column=0, padx=(0, 10), pady=3, sticky="ne")
+
+        if label == "Details":
+            box = ctk.CTkTextbox(form, height=80, wrap="word")
+            box.grid(row=row_idx, column=1, sticky="ew", pady=3)
+            box.insert("1.0", val)
+            box.configure(state="disabled")
+        else:
+            ctk.CTkLabel(
+                form, text=val,
+                font=ctk.CTkFont(size=12),
+                anchor="nw", justify="left", wraplength=380,
+            ).grid(row=row_idx, column=1, sticky="w", pady=3)
+
+    ctk.CTkButton(popup, text="Close", width=80,
+                  command=popup.destroy).pack(pady=(0, 16))
+
+
 def autofit_tree_columns(tree: ttk.Treeview) -> None:
     """
     Resize each column to fit its heading and all row values.
