@@ -322,7 +322,7 @@ def show_audit_detail_popup(parent, col_names: list[str], values: tuple) -> None
     popup = ctk.CTkToplevel(parent)
     popup.title("Audit Entry")
     popup.grab_set()
-    popup.resizable(True, False)
+    popup.resizable(True, True)
     popup.geometry("520x300")
 
     form = ctk.CTkFrame(popup, fg_color="transparent")
@@ -337,8 +337,9 @@ def show_audit_detail_popup(parent, col_names: list[str], values: tuple) -> None
         ).grid(row=row_idx, column=0, padx=(0, 10), pady=3, sticky="ne")
 
         if label == "Details":
+            form.rowconfigure(row_idx, weight=1)
             box = ctk.CTkTextbox(form, height=80, wrap="word")
-            box.grid(row=row_idx, column=1, sticky="ew", pady=3)
+            box.grid(row=row_idx, column=1, sticky="nsew", pady=3)
             box.insert("1.0", val)
             box.configure(state="disabled")
         else:
