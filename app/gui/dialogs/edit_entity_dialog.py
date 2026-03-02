@@ -5,9 +5,11 @@ dialogs/edit_entity_dialog.py
 from __future__ import annotations
 
 import os
+from tkinter import messagebox
 import customtkinter as ctk
 
 from schema import EntityRecord
+from app.core.settings import get_settings_manager
 
 
 class EditEntityDialog(ctk.CTkToplevel):
@@ -61,6 +63,9 @@ class EditEntityDialog(ctk.CTkToplevel):
         ]
 
         self._vars: dict[str, ctk.StringVar] = {}
+        self._project_combo: ctk.CTkComboBox | None = None
+        self._name_combo:    ctk.CTkComboBox | None = None
+
         for row_i, (label, attr) in enumerate(fields, start=1):
             ctk.CTkLabel(
                 form, text=label,
@@ -70,8 +75,19 @@ class EditEntityDialog(ctk.CTkToplevel):
             var = ctk.StringVar()
             self._vars[attr] = var
             setattr(self, attr, var)
-            ctk.CTkEntry(form, textvariable=var, width=280).grid(
-                row=row_i, column=1, pady=6, sticky="ew")
+
+            if attr in ("_project_var", "_name_var"):
+                combo = ctk.CTkComboBox(form, variable=var, values=[], width=280)
+                combo.grid(row=row_i, column=1, pady=6, sticky="ew")
+                if attr == "_project_var":
+                    self._project_combo = combo
+                else:
+                    self._name_combo = combo
+            else:
+                ctk.CTkEntry(form, textvariable=var, width=280).grid(
+                    row=row_i, column=1, pady=6, sticky="ew")
+
+        self._project_var.trace_add("write", self._on_project_changed)
 
         # Error label
         self._error_label = ctk.CTkLabel(
@@ -96,6 +112,14 @@ class EditEntityDialog(ctk.CTkToplevel):
             command=self._on_confirm,
         ).pack(side="left")
 
+    def _on_project_changed(self, *_) -> None:
+        code = self._project_var.get().strip().upper()
+        mgr = get_settings_manager()
+        if self._project_combo is not None:
+            self._project_combo.configure(values=mgr.project_codes())
+        if self._name_combo is not None:
+            self._name_combo.configure(values=mgr.entity_names_for(code))
+
     def _prefill(self) -> None:
         e = self._entity
         self._id_label.configure(text=e.id)
@@ -103,6 +127,7 @@ class EditEntityDialog(ctk.CTkToplevel):
         self._project_var.set(e.project)
         self._owner_var.set(e.owner_team)
         self._created_by_var.set(e.created_by)
+        self._on_project_changed()
 
     def _on_confirm(self) -> None:
         name       = self._name_var.get().strip()
@@ -121,6 +146,26 @@ class EditEntityDialog(ctk.CTkToplevel):
             self._error_label.configure(
                 text=f"Required: {', '.join(missing)}")
             return
+
+        # Offer to save new values to presets
+        mgr = get_settings_manager()
+        presets = mgr.settings.project_presets
+        is_new_project = project not in presets
+        is_new_name    = name not in [e["name"] for e in presets.get(project, [])]
+        if is_new_project or is_new_name:
+            new_items = []
+            if is_new_project:
+                new_items.append(f"Project code:  {project}")
+            if is_new_name:
+                new_items.append(f"Entity name:   {name}")
+            msg = (
+                "New value(s) entered:\n\n"
+                + "\n".join(f"  \u2022 {i}" for i in new_items)
+                + "\n\nSave to presets?"
+            )
+            if messagebox.askyesno("Save to Presets", msg, parent=self):
+                mgr.add_preset_entry(project, name, self._entity.id)
+                mgr.save()
 
         self.result = (name, project, owner, created_by)
         self.destroy()
