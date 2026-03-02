@@ -10,6 +10,7 @@ from tkinter import filedialog
 import customtkinter as ctk
 
 from schema import generate_entity_id
+from app.core.settings import get_settings_manager
 
 
 class NewEntityDialog(ctk.CTkToplevel):
@@ -38,6 +39,7 @@ class NewEntityDialog(ctk.CTkToplevel):
             self._created_by_var.set(os.getlogin())
         except OSError:
             self._created_by_var.set(os.environ.get("USERNAME", ""))
+        self._on_project_changed()
 
     def _build(self) -> None:
         self.columnconfigure(0, weight=1)
@@ -60,6 +62,9 @@ class NewEntityDialog(ctk.CTkToplevel):
         ]
 
         self._vars: dict[str, ctk.StringVar] = {}
+        self._project_combo: ctk.CTkComboBox | None = None
+        self._name_combo:    ctk.CTkComboBox | None = None
+
         for row_i, (label, key) in enumerate(fields):
             ctk.CTkLabel(
                 form, text=label,
@@ -68,13 +73,24 @@ class NewEntityDialog(ctk.CTkToplevel):
 
             var = ctk.StringVar()
             self._vars[key] = var
-            ctk.CTkEntry(form, textvariable=var, width=280).grid(
-                row=row_i, column=1, pady=6, sticky="ew")
+
+            if key in ("_project", "_name"):
+                combo = ctk.CTkComboBox(form, variable=var, values=[], width=280)
+                combo.grid(row=row_i, column=1, pady=6, sticky="ew")
+                if key == "_project":
+                    self._project_combo = combo
+                else:
+                    self._name_combo = combo
+            else:
+                ctk.CTkEntry(form, textvariable=var, width=280).grid(
+                    row=row_i, column=1, pady=6, sticky="ew")
 
         self._project_var    = self._vars["_project"]
         self._name_var       = self._vars["_name"]
         self._owner_var      = self._vars["_owner"]
         self._created_by_var = self._vars["_created_by"]
+
+        self._project_var.trace_add("write", self._on_project_changed)
 
         # Entity ID — editable, auto-filled from name
         ctk.CTkLabel(
@@ -129,6 +145,14 @@ class NewEntityDialog(ctk.CTkToplevel):
             btn_frame, text="Create", width=100,
             command=self._on_confirm,
         ).pack(side="left")
+
+    def _on_project_changed(self, *_) -> None:
+        code = self._project_var.get().strip().upper()
+        mgr = get_settings_manager()
+        if self._project_combo is not None:
+            self._project_combo.configure(values=mgr.project_codes())
+        if self._name_combo is not None:
+            self._name_combo.configure(values=mgr.entity_names_for(code))
 
     def _update_id_from_name(self, *_) -> None:
         if self._id_modified:

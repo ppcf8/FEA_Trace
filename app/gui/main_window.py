@@ -21,6 +21,7 @@ from app.config import (APP_TITLE, APP_VERSION, WINDOW_SIZE, WINDOW_MIN_W, WINDO
                         LOG_FILENAME, DEVELOPER_NAME, DEVELOPER_EMAIL, RUNS_FOLDER)
 from app.core.models import FEAProject, _run_subfolder, _supports_trash
 from app.core.session import SessionManager, DEFAULT_SESSION_DIR
+from app.core.settings import get_settings_manager
 from app.gui.sidebar import Sidebar
 from app.gui.frames.entity_frame import EntityFrame
 from app.gui.frames.version_frame import VersionFrame
@@ -60,6 +61,7 @@ class MainWindow(ctk.CTk):
         self._session:        SessionManager         = SessionManager()
         self._frames:         dict[str, ctk.CTkFrame] = {}
 
+        get_settings_manager()   # eager load on startup
         self._build_layout()
         self._show_frame("welcome")
         self.protocol("WM_DELETE_WINDOW", self._on_closing)
@@ -98,6 +100,8 @@ class MainWindow(ctk.CTk):
 
         settings_btn = menu.add_cascade("  Settings  ")
         settings_dd = CustomDropdownMenu(widget=settings_btn)
+        settings_dd.add_option("Manage Presets…", command=self._on_manage_presets)
+        settings_dd.add_separator()
         appearance_sub = settings_dd.add_submenu("Appearance")
         appearance_sub.add_option("System",    command=lambda: ctk.set_appearance_mode("system"))
         appearance_sub.add_option("Light",     command=lambda: ctk.set_appearance_mode("light"))
@@ -588,6 +592,11 @@ class MainWindow(ctk.CTk):
                      text_color=["#1a6fc4", "#5aabf5"],
                      ).grid(row=5, column=0, padx=24, pady=2, sticky="ew")
 
+
+    def _on_manage_presets(self) -> None:
+        from app.gui.dialogs.manage_presets_dialog import ManagePresetsDialog
+        dlg = ManagePresetsDialog(self)
+        self.wait_window(dlg)
 
     def _show_error(self, title: str, message: str) -> None:
         from tkinter import messagebox
