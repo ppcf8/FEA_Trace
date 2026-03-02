@@ -306,11 +306,11 @@ def parse_audit_note_extended(note: str) -> tuple[str, str, str, str, str]:
         return "Promoted to Production", m.group(1), m.group(2), runs, ""
     m = re.match(r'\[Reverted to WIP\] from (\S+) on (.+?) by (.+?) — (.+)', note)
     if m:
-        return "Reverted to WIP", m.group(2), m.group(3), "", m.group(4)
+        return "Reverted to WIP", m.group(2), m.group(3), "—", m.group(4)
     m = re.match(r'\[REVERTED to WIP from (\S+) by (.+?) on (.+?)\] (.+)', note)
     if m:
-        return "Reverted to WIP", m.group(3), m.group(2), "", m.group(4)
-    return "System Note", "", "", "", note
+        return "Reverted to WIP", m.group(3), m.group(2), "—", m.group(4)
+    return "System Note", "", "", "—", note
 
 
 def autofit_tree_columns(tree: ttk.Treeview) -> None:
