@@ -30,6 +30,7 @@ Each entity is persisted as a `version_log.yaml` file in its own folder. Multipl
 - **Table sorting and filtering** — left-click column headings to sort (▲/▼); right-click for per-column filter popups with cascading Excel-style behaviour and date-only display for date columns; real-time search bar above each table
 - **Project-grouped sidebar** — project codes are top-level tree nodes; entities are grouped beneath their project code and labelled by name only; project nodes are created/removed automatically
 - **Sidebar expand / collapse** — `⊟` / `⊞` header buttons collapse or expand the full tree; right-click for a themed context menu (per-project, per-entity, or global)
+- **Project-code and entity-name presets** — save frequently-used project codes, entity names, and entity IDs as presets; New/Edit Entity dialogs show dropdown lists that filter by project code and auto-fill the entity ID; a Yes/No prompt on confirm offers to save new values; **Settings → Manage Presets…** provides a two-panel CRUD editor with add, edit (combined name + ID dialog), delete, and JSON import; persisted to `~/Documents/FEA_Trace/settings.json`
 - **Appearance** — System / Light / Dark theme switching via Settings menu
 
 ## Requirements
@@ -89,7 +90,8 @@ fea_trace_app/
 │   ├── core/
 │   │   ├── models.py        # FEAProject — YAML I/O and CRUD
 │   │   ├── session.py       # SessionManager — multi-entity session
-│   │   └── migration.py     # Schema version migration
+│   │   ├── migration.py     # Schema version migration
+│   │   └── settings.py      # SettingsManager — user presets persistence
 │   └── gui/
 │       ├── main_window.py   # Root controller
 │       ├── sidebar.py       # Navigation tree

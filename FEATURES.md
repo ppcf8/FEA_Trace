@@ -390,6 +390,24 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/core/models.py`, `app/gui/frames/run_frame.py`, `app/gui/frames/iteration_frame.py`,
   `app/gui/sidebar.py`, `app/gui/main_window.py`, `requirements.txt` _(2026-02-27)_
 
+- **Project-code and entity-name presets** — Users can save frequently-used project codes, entity
+  names, and entity IDs as presets backed by `~/Documents/FEA_Trace/settings.json`. The Project
+  Code and Entity Name fields in the New/Edit Entity dialogs use `CTkComboBox`: the name list
+  filters to the selected project's preset entries (falls back to the union of all names for
+  free-typed codes), and selecting a preset name auto-fills the Entity ID field with the stored ID
+  (if any). On confirm, if the entered project code or entity name is not already in presets a
+  Yes/No prompt offers to save the new values (including entity ID). Presets are managed via
+  **Settings → Manage Presets…**, a resizable two-panel `CTkToplevel`: left panel lists project
+  codes (add / edit / delete); right panel lists entity names + entity IDs for the selected project
+  (add / edit / delete; edit is accessible via button or double-click, opens a single combined
+  name + ID dialog). An **Import from file…** action performs an additive merge from an external
+  JSON file (handles both the old plain-string list format and the new `{name, id}` dict format).
+  Persistence is handled by `SettingsManager` with a module-level lazy singleton
+  `get_settings_manager()`; the manager is eagerly loaded on app startup.
+  `app/core/settings.py`, `app/gui/dialogs/manage_presets_dialog.py`,
+  `app/gui/dialogs/new_entity_dialog.py`, `app/gui/dialogs/edit_entity_dialog.py`,
+  `app/gui/main_window.py` _(2026-03-02)_
+
 ---
 
 ## Infrastructure
@@ -469,12 +487,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Not Implemented
 
 <!-- Sorted easiest → hardest. Format: **Feature** — description. -->
-
-- **Default Options** — add project-code and entity-name dropdowns (with free-text fallback) to
-  the entity dialogs, populated from a user-level settings config file. The config should be
-  importable from a structured external file and editable directly in the app (Settings menu).
-  Entity name list must filter by the selected project code. Introduces a new persistence layer
-  (`settings.json` or similar) and a settings editor dialog.
 
 - **Send output — email with stored communication log** — a "Send Output" button (location TBD —
   version or run panel) pre-fills an email (subject derived from version/entity metadata) and opens
