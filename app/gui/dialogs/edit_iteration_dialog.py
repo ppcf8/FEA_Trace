@@ -8,6 +8,8 @@ import customtkinter as ctk
 
 from schema import SolverType, IterationRecord
 
+_SYSTEM_NOTE_PREFIXES = ("[Reverted", "[Promoted", "[REVERTED")
+
 
 class EditIterationDialog(ctk.CTkToplevel):
     """
@@ -26,8 +28,6 @@ class EditIterationDialog(ctk.CTkToplevel):
     def __init__(self, parent, iteration: IterationRecord, has_runs: bool):
         super().__init__(parent)
         self.title("Edit Iteration")
-        self.geometry("540x560")
-        self.minsize(540, 560)
         self.resizable(True, True)
         self.grab_set()
 
@@ -35,6 +35,14 @@ class EditIterationDialog(ctk.CTkToplevel):
         self._iteration = iteration
         self._has_runs  = has_runs
         self._analysis_vars: dict[str, ctk.BooleanVar] = {}
+
+        self._system_notes = [n for n in iteration.notes
+                               if any(n.startswith(p) for p in _SYSTEM_NOTE_PREFIXES)]
+
+        height = 560 + (110 if self._system_notes else 0)
+        self.geometry(f"540x{height}")
+        self.minsize(540, height)
+
         self._build()
         self._prefill()
 
@@ -116,6 +124,17 @@ class EditIterationDialog(ctk.CTkToplevel):
         ctk.CTkEntry(form, textvariable=self._created_by_var,
                      width=200).grid(row=3, column=1, pady=6, sticky="w")
 
+        # Audit log (read-only) — only shown when entries exist
+        if self._system_notes:
+            ctk.CTkLabel(
+                form, text="Audit Log",
+                font=ctk.CTkFont(size=12), anchor="nw",
+                text_color="gray",
+            ).grid(row=4, column=0, padx=(0, 12), pady=(6, 6), sticky="nw")
+
+            self._audit_box = ctk.CTkTextbox(form, height=70, wrap="word")
+            self._audit_box.grid(row=4, column=1, pady=(6, 6), sticky="ew")
+
         # Error label
         self._error_label = ctk.CTkLabel(
             self, text="", text_color="#E05555",
@@ -146,6 +165,10 @@ class EditIterationDialog(ctk.CTkToplevel):
             var.set(atype in i.analysis_types)
         self._desc_box.insert("1.0", i.description)
         self._created_by_var.set(i.created_by)
+
+        if self._system_notes:
+            self._audit_box.insert("1.0", "\n".join(self._system_notes))
+            self._audit_box.configure(state="disabled")
 
     def _on_confirm(self) -> None:
         solver_str  = self._solver_var.get()

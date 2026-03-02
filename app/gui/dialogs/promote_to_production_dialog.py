@@ -1,49 +1,49 @@
 """
-dialogs/promote_to_production_dialog.py — Promote Version to Production Dialog
+dialogs/promote_to_production_dialog.py — Promote Iteration to Production Dialog
 """
 from __future__ import annotations
 
-import tkinter as tk
 import customtkinter as ctk
 from typing import Optional
 
 from app.core.models import FEAProject
-from schema import IterationStatus, RunStatus
+from schema import RunStatus
 
 
 class PromoteToProductionDialog(ctk.CTkToplevel):
-    """Dialog to select which runs support a production release.
+    """Dialog to select which runs support a production release for a single iteration.
 
-    self.result is list[tuple[str, int]] | None.
-    Each tuple is (iter_id, run_id).
+    self.result is list[int] | None  (list of run_ids).
     """
 
-    def __init__(self, master, project: FEAProject, version_id: str):
+    def __init__(self, master, project: FEAProject, version_id: str, iter_id: str):
         super().__init__(master)
         self.result: Optional[list] = None
         self._project    = project
         self._version_id = version_id
-        self._checks: dict[tuple, ctk.BooleanVar] = {}
+        self._iter_id    = iter_id
+        self._checks: dict[int, ctk.BooleanVar] = {}
 
         v = project._get_version(version_id)
-        self.title(f"Promote {version_id} to Production")
+        i = project._get_iteration(v, iter_id)
+        self.title(f"Promote {iter_id} to Production")
         self.resizable(True, True)
         self.grab_set()
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=1)
 
-        self._build(v)
+        self._build(i)
         self._center()
 
     # ------------------------------------------------------------------
     # Build
     # ------------------------------------------------------------------
 
-    def _build(self, v) -> None:
+    def _build(self, i) -> None:
         # Row 0 — title
         ctk.CTkLabel(
             self,
-            text=f"Promote {self._version_id} to Production",
+            text=f"Promote {self._iter_id} to Production",
             font=ctk.CTkFont(size=18, weight="bold"),
             anchor="w",
         ).grid(row=0, column=0, padx=24, pady=(20, 4), sticky="ew")
@@ -58,31 +58,18 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
         ).grid(row=1, column=0, padx=24, pady=(0, 12), sticky="ew")
 
         # Row 2 — scrollable run list
-        scroll = ctk.CTkScrollableFrame(self, height=240)
+        scroll = ctk.CTkScrollableFrame(self, height=200)
         scroll.grid(row=2, column=0, sticky="nsew", padx=16, pady=(0, 8))
         scroll.columnconfigure(0, weight=1)
 
-        has_runs = False
-        for i in v.iterations:
-            if not i.runs or i.status == IterationStatus.DEPRECATED:
-                continue
-            has_runs = True
-            # Iteration header
-            ctk.CTkLabel(
-                scroll,
-                text=f"{i.id}  ·  {i.solver_type.value}",
-                font=ctk.CTkFont(size=12, weight="bold"),
-                anchor="w",
-            ).pack(anchor="w", padx=(8, 0), pady=(8, 2))
-
+        if i.runs:
             for run in i.runs:
-                key = (i.id, run.id)
                 var = ctk.BooleanVar(value=run.artifacts.is_production)
-                self._checks[key] = var
+                self._checks[run.id] = var
                 date_only = run.date.split(" ")[0]
 
                 row_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-                row_frame.pack(anchor="w", padx=(24, 0), pady=2)
+                row_frame.pack(anchor="w", padx=(8, 0), pady=2)
 
                 ctk.CTkCheckBox(
                     row_frame, text="", variable=var, width=24,
@@ -107,11 +94,10 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
                     row_frame, text=date_only,
                     font=ctk.CTkFont(size=12), anchor="w",
                 ).grid(row=0, column=5)
-
-        if not has_runs:
+        else:
             ctk.CTkLabel(
                 scroll,
-                text="No runs found in this version.",
+                text="No runs found in this iteration.",
                 font=ctk.CTkFont(size=12),
                 text_color=["#888888", "#888888"],
                 anchor="w",
@@ -173,12 +159,11 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
     # ------------------------------------------------------------------
 
     def _on_confirm(self) -> None:
-        # Block promotion if any non-deprecated iteration has a WIP run
         v = self._project._get_version(self._version_id)
+        i = self._project._get_iteration(v, self._iter_id)
+        # Block if any run in this iteration is WIP
         wip_labels = [
-            f"{i.id} Run {run.id:02d}"
-            for i in v.iterations
-            if i.status != IterationStatus.DEPRECATED
+            f"Run {run.id:02d}"
             for run in i.runs
             if run.status == RunStatus.WIP
         ]
@@ -187,7 +172,7 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
                 text=f"Cannot promote — resolve WIP runs first: {', '.join(wip_labels)}"
             )
             return
-        selected = [key for key, var in self._checks.items() if var.get()]
+        selected = [run_id for run_id, var in self._checks.items() if var.get()]
         if not selected:
             self._error_label.configure(
                 text="Cannot promote — at least one run must be selected."
@@ -197,7 +182,7 @@ class PromoteToProductionDialog(ctk.CTkToplevel):
         self.destroy()
 
     def _center(self) -> None:
-        self.minsize(380, 300)
+        self.minsize(360, 280)
         self.update_idletasks()
         w, h   = self.winfo_width(), self.winfo_height()
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
