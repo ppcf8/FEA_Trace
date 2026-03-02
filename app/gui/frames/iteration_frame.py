@@ -266,12 +266,12 @@ class IterationFrame(ctk.CTkFrame):
             columns=("event", "date", "by", "runs", "details"),
             show="headings", height=7,
         )
-        self._audit_tree.heading("event",   text="Event",   anchor="w")
+        self._audit_tree.heading("event",   text="Event",   anchor="center")
         self._audit_tree.heading("date",    text="Date",    anchor="w")
         self._audit_tree.heading("by",      text="By",      anchor="w")
         self._audit_tree.heading("runs",    text="Runs",    anchor="w")
         self._audit_tree.heading("details", text="Details", anchor="w")
-        self._audit_tree.column("event",   width=160, minwidth=100, stretch=False, anchor="w")
+        self._audit_tree.column("event",   width=160, minwidth=100, stretch=False, anchor="center")
         self._audit_tree.column("date",    width=140, minwidth=100, stretch=False, anchor="w")
         self._audit_tree.column("by",      width=90,  minwidth=60,  stretch=False, anchor="w")
         self._audit_tree.column("runs",    width=60,  minwidth=40,  stretch=False, anchor="w")

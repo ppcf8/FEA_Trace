@@ -284,10 +284,10 @@ def parse_audit_note(note: str) -> tuple[str, str, str, str]:
         return "Promoted to Production", m.group(1), m.group(2), m.group(3)
     m = re.match(r'\[Reverted to WIP\] from (\S+) on (.+?) by (.+?) — (.+)', note)
     if m:
-        return "Reverted to WIP", m.group(2), m.group(3), f"from {m.group(1)} — {m.group(4)}"
+        return "Reverted to WIP", m.group(2), m.group(3), m.group(4)
     m = re.match(r'\[REVERTED to WIP from (\S+) by (.+?) on (.+?)\] (.+)', note)
     if m:
-        return "Reverted to WIP", m.group(3), m.group(2), f"from {m.group(1)} — {m.group(4)}"
+        return "Reverted to WIP", m.group(3), m.group(2), m.group(4)
     return "System Note", "", "", note
 
 
@@ -297,7 +297,7 @@ def parse_audit_note_extended(note: str) -> tuple[str, str, str, str, str]:
     Used by frame tables that show a dedicated Runs column.
 
     Promoted: runs = "01, 02"  details = ""
-    Reverted: runs = ""        details = "from {status} — {reason}"
+    Reverted: runs = ""        details = user reason only
     """
     m = re.match(r'\[Promoted to Production\] on (.+?) by (.+?) — Runs: (.+)', note)
     if m:
@@ -306,10 +306,10 @@ def parse_audit_note_extended(note: str) -> tuple[str, str, str, str, str]:
         return "Promoted to Production", m.group(1), m.group(2), runs, ""
     m = re.match(r'\[Reverted to WIP\] from (\S+) on (.+?) by (.+?) — (.+)', note)
     if m:
-        return "Reverted to WIP", m.group(2), m.group(3), "", f"from {m.group(1)} — {m.group(4)}"
+        return "Reverted to WIP", m.group(2), m.group(3), "", m.group(4)
     m = re.match(r'\[REVERTED to WIP from (\S+) by (.+?) on (.+?)\] (.+)', note)
     if m:
-        return "Reverted to WIP", m.group(3), m.group(2), "", f"from {m.group(1)} — {m.group(4)}"
+        return "Reverted to WIP", m.group(3), m.group(2), "", m.group(4)
     return "System Note", "", "", "", note
 
 

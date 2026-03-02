@@ -168,11 +168,11 @@ class VersionFrame(ctk.CTkFrame):
             columns=("event", "date", "by", "details"),
             show="headings", height=7,
         )
-        self._audit_tree.heading("event",   text="Event",   anchor="w")
+        self._audit_tree.heading("event",   text="Event",   anchor="center")
         self._audit_tree.heading("date",    text="Date",    anchor="w")
         self._audit_tree.heading("by",      text="By",      anchor="w")
         self._audit_tree.heading("details", text="Details", anchor="w")
-        self._audit_tree.column("event",   width=160, minwidth=100, stretch=False, anchor="w")
+        self._audit_tree.column("event",   width=160, minwidth=100, stretch=False, anchor="center")
         self._audit_tree.column("date",    width=140, minwidth=100, stretch=False, anchor="w")
         self._audit_tree.column("by",      width=90,  minwidth=60,  stretch=False, anchor="w")
         self._audit_tree.column("details", width=200, minwidth=80,  stretch=True,  anchor="w")
