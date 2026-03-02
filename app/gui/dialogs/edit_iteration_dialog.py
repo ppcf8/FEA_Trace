@@ -4,28 +4,14 @@ dialogs/edit_iteration_dialog.py
 
 from __future__ import annotations
 
-import re
 import tkinter.ttk as ttk
 import customtkinter as ctk
 
 from schema import SolverType, IterationRecord
-from app.gui.theme import apply_table_style, make_scrollbar
+from app.gui.theme import (apply_table_style, make_scrollbar,
+                           AUDIT_NOTE_PREFIXES, parse_audit_note)
 
-_SYSTEM_NOTE_PREFIXES = ("[Reverted", "[Promoted", "[REVERTED")
-
-
-def _parse_audit_note(note: str) -> tuple[str, str, str, str]:
-    """Parse a system audit note into (event, date, by, details)."""
-    m = re.match(r'\[Promoted to Production\] on (.+?) by (.+?) — Runs: (.+)', note)
-    if m:
-        return "Promoted", m.group(1), m.group(2), m.group(3)
-    m = re.match(r'\[Reverted to WIP\] from (\S+) on (.+?) by (.+?) — (.+)', note)
-    if m:
-        return "Reverted", m.group(2), m.group(3), f"from {m.group(1)} — {m.group(4)}"
-    m = re.match(r'\[REVERTED to WIP from (\S+) by (.+?) on (.+?)\] (.+)', note)
-    if m:
-        return "Reverted", m.group(3), m.group(2), f"from {m.group(1)} — {m.group(4)}"
-    return "System", "", "", note
+_SYSTEM_NOTE_PREFIXES = AUDIT_NOTE_PREFIXES
 
 
 class EditIterationDialog(ctk.CTkToplevel):
@@ -210,7 +196,7 @@ class EditIterationDialog(ctk.CTkToplevel):
 
         if self._system_notes:
             for note in reversed(self._system_notes):
-                ev, dt, by, details = _parse_audit_note(note)
+                ev, dt, by, details = parse_audit_note(note)
                 self._audit_tree.insert("", "end", values=(ev, dt, by, details))
 
     def _on_confirm(self) -> None:

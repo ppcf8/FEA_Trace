@@ -8,6 +8,7 @@ in individual frames.
 
 from __future__ import annotations
 
+import re
 import tkinter as tk
 import tkinter.ttk as ttk
 import customtkinter as ctk
@@ -260,3 +261,31 @@ class Tooltip:
 def add_hint(widget: tk.Widget, text: str) -> None:
     """Attach a hover tooltip to *widget*. Tooltip appears after ~600 ms."""
     Tooltip(widget, text)
+
+
+# ---------------------------------------------------------------------------
+# 6. Audit Note Parser
+# ---------------------------------------------------------------------------
+
+AUDIT_NOTE_PREFIXES = ("[Reverted", "[Promoted", "[REVERTED")
+
+
+def parse_audit_note(note: str) -> tuple[str, str, str, str]:
+    """
+    Parse a system audit note into (event, date, by, details).
+
+    Handles:
+      [Promoted to Production] on {date} by {user} — Runs: {runs}
+      [Reverted to WIP] from {status} on {date} by {user} — {reason}
+      [REVERTED to WIP from {status} by {user} on {date}] {reason}  (legacy)
+    """
+    m = re.match(r'\[Promoted to Production\] on (.+?) by (.+?) — Runs: (.+)', note)
+    if m:
+        return "Promoted", m.group(1), m.group(2), m.group(3)
+    m = re.match(r'\[Reverted to WIP\] from (\S+) on (.+?) by (.+?) — (.+)', note)
+    if m:
+        return "Reverted", m.group(2), m.group(3), f"from {m.group(1)} — {m.group(4)}"
+    m = re.match(r'\[REVERTED to WIP from (\S+) by (.+?) on (.+?)\] (.+)', note)
+    if m:
+        return "Reverted", m.group(3), m.group(2), f"from {m.group(1)} — {m.group(4)}"
+    return "System", "", "", note
