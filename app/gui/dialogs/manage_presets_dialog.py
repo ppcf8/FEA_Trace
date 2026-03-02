@@ -19,7 +19,7 @@ class ManagePresetsDialog(ctk.CTkToplevel):
     Structured editor for the project_presets mapping.
 
     Left panel  — project codes (single-column Treeview)
-    Right panel — entity names for the selected project code
+    Right panel — entity names + IDs for the selected project code
 
     Changes are held in a working copy and only committed on Save.
     """
@@ -27,11 +27,11 @@ class ManagePresetsDialog(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Manage Presets")
-        self.geometry("640x420")
+        self.geometry("680x420")
         self.resizable(True, True)
         self.grab_set()
 
-        self._presets: dict[str, list[str]] = {}
+        self._presets: dict[str, list[dict[str, str]]] = {}
         self._selected_code: str = ""
 
         self._build()
@@ -100,8 +100,12 @@ class ManagePresetsDialog(ctk.CTkToplevel):
         apply_table_style("Presets.Name.Treeview")
         self._name_tree = ttk.Treeview(
             body, style="Presets.Name.Treeview",
-            show="tree", selectmode="browse",
+            columns=("name", "id"), show="headings", selectmode="browse",
         )
+        self._name_tree.heading("name", text="Entity Name")
+        self._name_tree.heading("id",   text="Entity ID")
+        self._name_tree.column("name", width=180, stretch=True)
+        self._name_tree.column("id",   width=100, stretch=False)
         self._name_tree.grid(row=1, column=2, sticky="nsew")
 
         name_btn_row = ctk.CTkFrame(body, fg_color="transparent")
@@ -172,8 +176,12 @@ class ManagePresetsDialog(ctk.CTkToplevel):
         )
         self._name_header.configure(text=header_text)
         if self._selected_code and self._selected_code in self._presets:
-            for name in self._presets[self._selected_code]:
-                self._name_tree.insert("", "end", text=name)
+            for entry in self._presets[self._selected_code]:
+                self._name_tree.insert(
+                    "", "end",
+                    iid=entry["name"],
+                    values=(entry["name"], entry.get("id", "")),
+                )
 
     # ------------------------------------------------------------------
     # Event handlers — left panel
@@ -229,24 +237,35 @@ class ManagePresetsDialog(ctk.CTkToplevel):
                 parent=self,
             )
             return
-        dlg = ctk.CTkInputDialog(
-            text=f"Enter entity name for \"{self._selected_code}\":",
+
+        dlg_name = ctk.CTkInputDialog(
+            text=f"Entity name for \"{self._selected_code}\":",
             title="Add Entity Name",
         )
-        value = dlg.get_input()
-        if value is None:
+        name = dlg_name.get_input()
+        if name is None:
             return
-        name = value.strip()
+        name = name.strip()
         if not name:
             return
-        if name in self._presets[self._selected_code]:
+
+        existing_names = [e["name"] for e in self._presets[self._selected_code]]
+        if name in existing_names:
             messagebox.showwarning(
                 "Duplicate",
                 f"\"{name}\" already exists for {self._selected_code}.",
                 parent=self,
             )
             return
-        self._presets[self._selected_code].append(name)
+
+        dlg_id = ctk.CTkInputDialog(
+            text="Entity ID (optional — leave blank to auto-generate):",
+            title="Entity ID",
+        )
+        raw_id = dlg_id.get_input()
+        entity_id = raw_id.strip().upper() if raw_id is not None else ""
+
+        self._presets[self._selected_code].append({"name": name, "id": entity_id})
         self._refresh_name_list()
 
     def _del_name(self) -> None:
@@ -255,10 +274,9 @@ class ManagePresetsDialog(ctk.CTkToplevel):
         sel = self._name_tree.selection()
         if not sel:
             return
-        name = self._name_tree.item(sel[0], "text")
-        names = self._presets[self._selected_code]
-        if name in names:
-            names.remove(name)
+        name = self._name_tree.set(sel[0], "name")
+        entries = self._presets[self._selected_code]
+        self._presets[self._selected_code] = [e for e in entries if e["name"] != name]
         self._refresh_name_list()
 
     # ------------------------------------------------------------------
@@ -290,19 +308,25 @@ class ManagePresetsDialog(ctk.CTkToplevel):
 
         added_codes = 0
         added_names = 0
-        for code, names in incoming.items():
+        for code, entries in incoming.items():
             code = str(code).strip().upper()
-            if not code or not isinstance(names, list):
+            if not code or not isinstance(entries, list):
                 continue
             if code not in self._presets:
                 self._presets[code] = []
                 added_codes += 1
-            existing = set(self._presets[code])
-            for n in names:
-                n = str(n).strip()
-                if n and n not in existing:
-                    self._presets[code].append(n)
-                    existing.add(n)
+            existing_names = {e["name"] for e in self._presets[code]}
+            for e in entries:
+                if isinstance(e, str):
+                    name, eid = e.strip(), ""
+                elif isinstance(e, dict):
+                    name = str(e.get("name", "")).strip()
+                    eid  = str(e.get("id",   "")).strip()
+                else:
+                    continue
+                if name and name not in existing_names:
+                    self._presets[code].append({"name": name, "id": eid})
+                    existing_names.add(name)
                     added_names += 1
 
         self._refresh_project_list()

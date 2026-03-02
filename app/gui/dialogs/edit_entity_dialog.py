@@ -5,6 +5,7 @@ dialogs/edit_entity_dialog.py
 from __future__ import annotations
 
 import os
+from tkinter import messagebox
 import customtkinter as ctk
 
 from schema import EntityRecord
@@ -145,6 +146,26 @@ class EditEntityDialog(ctk.CTkToplevel):
             self._error_label.configure(
                 text=f"Required: {', '.join(missing)}")
             return
+
+        # Offer to save new values to presets
+        mgr = get_settings_manager()
+        presets = mgr.settings.project_presets
+        is_new_project = project not in presets
+        is_new_name    = name not in [e["name"] for e in presets.get(project, [])]
+        if is_new_project or is_new_name:
+            new_items = []
+            if is_new_project:
+                new_items.append(f"Project code:  {project}")
+            if is_new_name:
+                new_items.append(f"Entity name:   {name}")
+            msg = (
+                "New value(s) entered:\n\n"
+                + "\n".join(f"  \u2022 {i}" for i in new_items)
+                + "\n\nSave to presets?"
+            )
+            if messagebox.askyesno("Save to Presets", msg, parent=self):
+                mgr.add_preset_entry(project, name, self._entity.id)
+                mgr.save()
 
         self.result = (name, project, owner, created_by)
         self.destroy()

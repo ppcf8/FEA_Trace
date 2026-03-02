@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from schema import generate_entity_id
@@ -158,8 +158,17 @@ class NewEntityDialog(ctk.CTkToplevel):
         if self._id_modified:
             return
         name = self._name_var.get().strip()
+        if not name:
+            self._updating_id = True
+            self._id_var.set("")
+            self._updating_id = False
+            return
+        # Use the preset entity ID when available, otherwise auto-generate
+        mgr = get_settings_manager()
+        code = self._project_var.get().strip().upper()
+        preset_id = mgr.entity_id_for(code, name)
         self._updating_id = True
-        self._id_var.set(generate_entity_id(name) if name else "")
+        self._id_var.set(preset_id if preset_id else generate_entity_id(name))
         self._updating_id = False
 
     def _on_id_changed(self, *_) -> None:
@@ -192,6 +201,26 @@ class NewEntityDialog(ctk.CTkToplevel):
             self._error_label.configure(
                 text=f"Required: {', '.join(missing)}")
             return
+
+        # Offer to save new values to presets
+        mgr = get_settings_manager()
+        presets = mgr.settings.project_presets
+        is_new_project = project not in presets
+        is_new_name    = name not in [e["name"] for e in presets.get(project, [])]
+        if is_new_project or is_new_name:
+            new_items = []
+            if is_new_project:
+                new_items.append(f"Project code:  {project}")
+            if is_new_name:
+                new_items.append(f"Entity name:   {name}")
+            msg = (
+                "New value(s) entered:\n\n"
+                + "\n".join(f"  \u2022 {i}" for i in new_items)
+                + "\n\nSave to presets?"
+            )
+            if messagebox.askyesno("Save to Presets", msg, parent=self):
+                mgr.add_preset_entry(project, name, entity_id)
+                mgr.save()
 
         self.params = (parent_dir, entity_id, name, project, owner, created_by)
         self.result = Path(parent_dir) / f"{project}_{name.replace(' ', '_')}"
