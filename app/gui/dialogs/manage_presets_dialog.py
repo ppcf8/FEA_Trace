@@ -72,12 +72,19 @@ class ManagePresetsDialog(ctk.CTkToplevel):
         )
         self._project_tree.grid(row=1, column=0, sticky="nsew")
         self._project_tree.bind("<<TreeviewSelect>>", self._on_project_select)
+        self._project_tree.bind("<Double-1>", lambda _e: self._edit_project())
 
         proj_btn_row = ctk.CTkFrame(body, fg_color="transparent")
         proj_btn_row.grid(row=2, column=0, sticky="ew", pady=(4, 0))
         ctk.CTkButton(
             proj_btn_row, text="+ Add", width=72,
             command=self._add_project,
+        ).pack(side="left", padx=(0, 6))
+        ctk.CTkButton(
+            proj_btn_row, text="✎ Edit", width=72,
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=self._edit_project,
         ).pack(side="left", padx=(0, 6))
         ctk.CTkButton(
             proj_btn_row, text="− Del", width=72,
@@ -107,12 +114,19 @@ class ManagePresetsDialog(ctk.CTkToplevel):
         self._name_tree.column("name", width=180, stretch=True)
         self._name_tree.column("id",   width=100, stretch=False)
         self._name_tree.grid(row=1, column=2, sticky="nsew")
+        self._name_tree.bind("<Double-1>", lambda _e: self._edit_name())
 
         name_btn_row = ctk.CTkFrame(body, fg_color="transparent")
         name_btn_row.grid(row=2, column=2, sticky="ew", pady=(4, 0))
         ctk.CTkButton(
             name_btn_row, text="+ Add", width=72,
             command=self._add_name,
+        ).pack(side="left", padx=(0, 6))
+        ctk.CTkButton(
+            name_btn_row, text="✎ Edit", width=72,
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=self._edit_name,
         ).pack(side="left", padx=(0, 6))
         ctk.CTkButton(
             name_btn_row, text="− Del", width=72,
@@ -184,6 +198,103 @@ class ManagePresetsDialog(ctk.CTkToplevel):
                 )
 
     # ------------------------------------------------------------------
+    # Input helper
+    # ------------------------------------------------------------------
+
+    def _ask_value(self, title: str, label: str, initial: str = "") -> str | None:
+        """Single-field modal dialog with a pre-filled CTkEntry. Returns None if cancelled."""
+        result: list[str | None] = [None]
+
+        dlg = ctk.CTkToplevel(self)
+        dlg.title(title)
+        dlg.geometry("340x130")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+        dlg.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(dlg, text=label, anchor="w").grid(
+            row=0, column=0, padx=16, pady=(14, 4), sticky="ew")
+
+        var = ctk.StringVar(value=initial)
+        entry = ctk.CTkEntry(dlg, textvariable=var)
+        entry.grid(row=1, column=0, padx=16, sticky="ew")
+        entry.focus_set()
+        entry.select_range(0, "end")
+
+        def _ok():
+            result[0] = var.get()
+            dlg.destroy()
+
+        entry.bind("<Return>", lambda _e: _ok())
+        entry.bind("<Escape>", lambda _e: dlg.destroy())
+
+        btn_row = ctk.CTkFrame(dlg, fg_color="transparent")
+        btn_row.grid(row=2, column=0, padx=16, pady=12, sticky="e")
+        ctk.CTkButton(
+            btn_row, text="Cancel", width=80,
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=dlg.destroy,
+        ).pack(side="left", padx=(0, 6))
+        ctk.CTkButton(btn_row, text="OK", width=80, command=_ok).pack(side="left")
+
+        dlg.wait_window()
+        return result[0]
+
+    def _ask_name_and_id(
+        self, title: str,
+        initial_name: str = "", initial_id: str = "",
+    ) -> tuple[str, str] | None:
+        """Two-field modal dialog for entity name + entity ID.
+
+        Returns (name, id) on confirm, or None if cancelled.
+        """
+        result: list[tuple[str, str] | None] = [None]
+
+        dlg = ctk.CTkToplevel(self)
+        dlg.title(title)
+        dlg.geometry("340x190")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+        dlg.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(dlg, text="Entity name:", anchor="w").grid(
+            row=0, column=0, padx=16, pady=(14, 2), sticky="ew")
+        name_var = ctk.StringVar(value=initial_name)
+        name_entry = ctk.CTkEntry(dlg, textvariable=name_var)
+        name_entry.grid(row=1, column=0, padx=16, sticky="ew")
+
+        ctk.CTkLabel(dlg, text="Entity ID (optional — leave blank to auto-generate):",
+                     anchor="w").grid(row=2, column=0, padx=16, pady=(10, 2), sticky="ew")
+        id_var = ctk.StringVar(value=initial_id)
+        id_entry = ctk.CTkEntry(dlg, textvariable=id_var)
+        id_entry.grid(row=3, column=0, padx=16, sticky="ew")
+
+        def _ok():
+            result[0] = (name_var.get(), id_var.get().strip().upper())
+            dlg.destroy()
+
+        name_entry.bind("<Return>", lambda _e: id_entry.focus_set())
+        id_entry.bind("<Return>",   lambda _e: _ok())
+        dlg.bind("<Escape>", lambda _e: dlg.destroy())
+
+        btn_row = ctk.CTkFrame(dlg, fg_color="transparent")
+        btn_row.grid(row=4, column=0, padx=16, pady=12, sticky="e")
+        ctk.CTkButton(
+            btn_row, text="Cancel", width=80,
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=dlg.destroy,
+        ).pack(side="left", padx=(0, 6))
+        ctk.CTkButton(btn_row, text="OK", width=80, command=_ok).pack(side="left")
+
+        name_entry.focus_set()
+        if initial_name:
+            name_entry.select_range(0, "end")
+        dlg.wait_window()
+        return result[0]
+
+    # ------------------------------------------------------------------
     # Event handlers — left panel
     # ------------------------------------------------------------------
 
@@ -225,6 +336,28 @@ class ManagePresetsDialog(ctk.CTkToplevel):
         self._refresh_project_list()
         self._refresh_name_list()
 
+    def _edit_project(self) -> None:
+        if not self._selected_code:
+            return
+        new_code = self._ask_value(
+            "Edit Project Code", "Project code:", self._selected_code)
+        if new_code is None:
+            return
+        new_code = new_code.strip().upper()
+        if not new_code or new_code == self._selected_code:
+            return
+        if new_code in self._presets:
+            messagebox.showwarning(
+                "Duplicate", f"Project code \"{new_code}\" already exists.",
+                parent=self,
+            )
+            return
+        # Rename: move entries under new key
+        self._presets[new_code] = self._presets.pop(self._selected_code)
+        self._selected_code = new_code
+        self._refresh_project_list(select_code=new_code)
+        self._refresh_name_list()
+
     # ------------------------------------------------------------------
     # Event handlers — right panel
     # ------------------------------------------------------------------
@@ -238,13 +371,10 @@ class ManagePresetsDialog(ctk.CTkToplevel):
             )
             return
 
-        dlg_name = ctk.CTkInputDialog(
-            text=f"Entity name for \"{self._selected_code}\":",
-            title="Add Entity Name",
-        )
-        name = dlg_name.get_input()
-        if name is None:
+        values = self._ask_name_and_id(f"Add Entry — {self._selected_code}")
+        if values is None:
             return
+        name, entity_id = values
         name = name.strip()
         if not name:
             return
@@ -257,13 +387,6 @@ class ManagePresetsDialog(ctk.CTkToplevel):
                 parent=self,
             )
             return
-
-        dlg_id = ctk.CTkInputDialog(
-            text="Entity ID (optional — leave blank to auto-generate):",
-            title="Entity ID",
-        )
-        raw_id = dlg_id.get_input()
-        entity_id = raw_id.strip().upper() if raw_id is not None else ""
 
         self._presets[self._selected_code].append({"name": name, "id": entity_id})
         self._refresh_name_list()
@@ -278,6 +401,49 @@ class ManagePresetsDialog(ctk.CTkToplevel):
         entries = self._presets[self._selected_code]
         self._presets[self._selected_code] = [e for e in entries if e["name"] != name]
         self._refresh_name_list()
+
+    def _edit_name(self) -> None:
+        if not self._selected_code:
+            return
+        sel = self._name_tree.selection()
+        if not sel:
+            return
+        old_name = self._name_tree.set(sel[0], "name")
+        old_id   = self._name_tree.set(sel[0], "id")
+
+        values = self._ask_name_and_id(
+            f"Edit Entry — {self._selected_code}",
+            initial_name=old_name,
+            initial_id=old_id,
+        )
+        if values is None:
+            return
+        new_name, new_id = values
+        new_name = new_name.strip()
+        if not new_name:
+            return
+
+        entries = self._presets[self._selected_code]
+        if new_name != old_name:
+            existing_names = [e["name"] for e in entries if e["name"] != old_name]
+            if new_name in existing_names:
+                messagebox.showwarning(
+                    "Duplicate",
+                    f"\"{new_name}\" already exists for {self._selected_code}.",
+                    parent=self,
+                )
+                return
+
+        for entry in entries:
+            if entry["name"] == old_name:
+                entry["name"] = new_name
+                entry["id"]   = new_id
+                break
+        self._refresh_name_list()
+        # Re-select the edited row
+        if new_name in self._name_tree.get_children():
+            self._name_tree.selection_set(new_name)
+            self._name_tree.focus(new_name)
 
     # ------------------------------------------------------------------
     # Import
