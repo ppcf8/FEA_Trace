@@ -282,6 +282,22 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
   `app/gui/frames/run_frame.py` _(2026-02-25)_
 
+- **Audit log tables in VersionFrame and IterationFrame** — System audit notes
+  (`[Promoted to Production]`, `[Reverted to WIP]`, legacy `[REVERTED`) are displayed as
+  a read-only `ttk.Treeview` table instead of raw bullet text. `VersionFrame` shows four
+  columns (Event, Date, By, Details); `IterationFrame` adds a fifth Runs column listing
+  the promoted run numbers (e.g. `01, 02`) or `—` for Revert rows. The Event column is
+  centred; all columns are autofitted to content via `autofit_tree_columns()`. The table
+  defaults to 7 visible rows with a vertical scrollbar when the entry count exceeds that.
+  Double-clicking any row opens `show_audit_detail_popup` — a resizable `CTkToplevel`
+  showing all fields as labels with the Details field in a word-wrapped, fully resizable
+  `CTkTextbox`. Shared helpers (`AUDIT_NOTE_PREFIXES`, `parse_audit_note`,
+  `parse_audit_note_extended`, `autofit_tree_columns`, `show_audit_detail_popup`)
+  centralised in `theme.py`; edit dialogs updated to import from there.
+  `app/gui/theme.py`, `app/gui/frames/version_frame.py`,
+  `app/gui/frames/iteration_frame.py`, `app/gui/dialogs/edit_version_dialog.py`,
+  `app/gui/dialogs/edit_iteration_dialog.py` _(2026-03-02)_
+
 - **Version audit trail protection** — `EditVersionDialog` splits `version.notes` into
   user-editable notes and immutable system revert entries (lines prefixed `[REVERTED`).
   Revert entries are shown in a separate read-only `CTkTextbox` (`state="disabled"`) and
