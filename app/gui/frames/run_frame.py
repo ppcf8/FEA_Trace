@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 from PIL import Image
 
-from schema import RunStatus, RUN_STATUS_TRANSITIONS, SOLVER_EXTENSIONS, VersionStatus
+from schema import RunStatus, RUN_STATUS_TRANSITIONS, SOLVER_EXTENSIONS, VersionStatus, IterationStatus
 from app.core.models import FEAProject, _check_production_artifacts, _run_subfolder
 from app.config import RUNS_FOLDER, REQUIRED_PRODUCTION_ARTIFACTS
 from app.gui.theme import add_hint
@@ -389,8 +389,10 @@ class RunFrame(ctk.CTkFrame):
             text="  ".join(all_output) if all_output else "—")
 
         self._production_var.set(run.artifacts.is_production)
-        is_version_wip = (v.status == VersionStatus.WIP)
-        if is_version_wip:
+        is_version_wip  = (v.status == VersionStatus.WIP)
+        is_iter_prod    = (i.status == IterationStatus.PRODUCTION)
+        # Show the interactive switch only when version is WIP and iteration is not PRODUCTION
+        if is_version_wip and not is_iter_prod:
             self._prod_readonly_label.pack_forget()
             self._prod_switch.pack(side="left")
         else:
@@ -402,12 +404,12 @@ class RunFrame(ctk.CTkFrame):
             self._prod_readonly_label.configure(text=prod_text)
             self._prod_readonly_label.pack(side="left")
 
-        lock = run.artifacts.is_production or not is_version_wip
+        lock = run.artifacts.is_production or not is_version_wip or is_iter_prod
         self._edit_btn.configure(state="disabled" if lock else "normal")
         self._artifacts_edit_btn.configure(
             state="disabled" if lock else "normal")
         self._delete_btn.configure(
-            state="disabled" if run.artifacts.is_production else "normal")
+            state="disabled" if (run.artifacts.is_production or is_iter_prod) else "normal")
 
         warnings, warn_title, is_critical = self._get_warnings(i, run, run_id, run.artifacts.is_production)
         self._show_warnings(warnings, warn_title, is_critical)

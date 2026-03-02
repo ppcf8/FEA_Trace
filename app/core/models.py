@@ -81,13 +81,13 @@ def _deserialise_iteration(raw):
         analysis_types=raw.get("analysis_types", []),
         status=IterationStatus(raw.get("status", "WIP")),
         notes=raw.get("notes", []),
+        promoted_at=raw.get("promoted_at", ""),
         runs=[_deserialise_run(r) for r in raw.get("runs",[])])
 
 def _deserialise_version(raw):
     return VersionRecord(
         id=raw["id"], status=VersionStatus(raw["status"]),
         description=raw["description"], created_by=raw["created_by"], created_on=raw["created_on"],
-        promoted_at=raw.get("promoted_at", ""),
         iterations=[_deserialise_iteration(i) for i in raw.get("iterations",[])],
         notes=raw.get("notes",[]))
 
@@ -115,10 +115,10 @@ def _serialise_log(log):
     def iter_d(i): return {"id":i.id,"description":i.description,
         "filename_base":i.filename_base,"created_by":i.created_by,"created_on":i.created_on,
         "solver_type":i.solver_type.value,"analysis_types":i.analysis_types,
-        "status":i.status.value,"notes":i.notes,
+        "status":i.status.value,"notes":i.notes,"promoted_at":i.promoted_at,
         "runs":[run_d(r) for r in i.runs]}
     def ver_d(v): return {"id":v.id,"status":v.status.value,"description":v.description,
-        "created_by":v.created_by,"created_on":v.created_on,"promoted_at":v.promoted_at,
+        "created_by":v.created_by,"created_on":v.created_on,
         "notes":v.notes,
         "iterations":[iter_d(i) for i in v.iterations]}
     e = log.entity
@@ -263,16 +263,18 @@ class FEAProject:
         v = self._get_version(version_id)
         ok, reason = validate_status_transition(v.status, new_status)
         if not ok: raise StatusTransitionError(reason)
+        if new_status == VersionStatus.PRODUCTION:
+            has_prod_iter = any(i.status == IterationStatus.PRODUCTION for i in v.iterations)
+            if not has_prod_iter:
+                raise ValidationError(
+                    "Cannot mark version as Production — "
+                    "at least one iteration must be promoted to Production first.")
         if new_status == VersionStatus.WIP and v.status != VersionStatus.WIP:
             if not revert_reason:
                 raise ValidationError("A reason is required when reverting to WIP.")
             v.notes.append(
-                f"[REVERTED to WIP from {v.status.value} "
-                f"by {_current_user()} on {_now()}] {revert_reason}")
-            v.promoted_at = ""
-            for i in v.iterations:
-                for run in i.runs:
-                    run.artifacts.is_production = False
+                f"[Reverted to WIP] from {v.status.value} on {_now()} "
+                f"by {_current_user()} — {revert_reason}")
         v.status = new_status
         self._write()
 
@@ -285,38 +287,51 @@ class FEAProject:
             if not revert_reason:
                 raise ValidationError("A reason is required when reverting to WIP.")
             i.notes.append(
-                f"[REVERTED to WIP from {i.status.value} "
-                f"by {_current_user()} on {_now()}] {revert_reason}")
+                f"[Reverted to WIP] from {i.status.value} on {_now()} "
+                f"by {_current_user()} — {revert_reason}")
+            if i.status == IterationStatus.PRODUCTION:
+                i.promoted_at = ""
+                for run in i.runs:
+                    run.artifacts.is_production = False
         i.status = target
         self._write()
 
-    def promote_version_to_production(
-            self, version_id: str,
-            production_run_ids: list,
+    def promote_iteration_to_production(
+            self, version_id: str, iter_id: str,
+            production_run_ids: list[int],
     ) -> dict:
-        """Promote version to PRODUCTION and mark selected runs.
-        Clears any previously set is_production flags first, then marks
-        the selected (iter_id, run_id) pairs. Returns artifact warnings."""
+        """Promote a single iteration to PRODUCTION and mark selected runs.
+        Clears any previously set is_production flags in this iteration first,
+        then marks the selected run_ids. Returns artifact warnings dict."""
         v = self._get_version(version_id)
-        ok, reason = validate_status_transition(v.status, VersionStatus.PRODUCTION)
+        i = self._get_iteration(v, iter_id)
+        ok, reason = validate_status_transition(i.status, IterationStatus.PRODUCTION)
         if not ok:
             raise StatusTransitionError(reason)
-        v.status      = VersionStatus.PRODUCTION
-        v.promoted_at = _now()
+        # Block if any run in this iteration is still WIP
+        wip_runs = [run.id for run in i.runs if run.status == RunStatus.WIP]
+        if wip_runs:
+            raise ValidationError(
+                f"Cannot promote — resolve WIP runs first: "
+                f"{', '.join(f'Run {r:02d}' for r in wip_runs)}")
+        now = _now()
         # Clear all existing flags, then re-mark selected
-        for i in v.iterations:
-            for run in i.runs:
-                run.artifacts.is_production = False
+        for run in i.runs:
+            run.artifacts.is_production = False
         warnings: dict = {}
-        for iter_id, run_id in production_run_ids:
-            i   = self._get_iteration(v, iter_id)
+        for run_id in production_run_ids:
             run = self._get_run(i, run_id)
             run.artifacts.is_production = True
             w = _check_production_artifacts(
                 self._path, i.solver_type, i.filename_base,
                 run_id, version_id, iter_id, run.artifacts.output)
             if w:
-                warnings[(iter_id, run_id)] = w
+                warnings[run_id] = w
+        i.status      = IterationStatus.PRODUCTION
+        i.promoted_at = now
+        run_list_str  = ", ".join(f"Run {r:02d}" for r in sorted(production_run_ids))
+        i.notes.append(
+            f"[Promoted to Production] on {now} by {_current_user()} — Runs: {run_list_str}")
         self._write()
         return warnings
 

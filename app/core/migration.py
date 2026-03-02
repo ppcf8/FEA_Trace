@@ -194,3 +194,33 @@ MIGRATIONS["2.3.0"] = (
     "Add status and notes fields to IterationRecord.",
     False,   # minor — auto-applied
 )
+
+
+# ---------------------------------------------------------------------------
+# Migration: 2.4.0 → 2.5.0
+# Move promoted_at from VersionRecord to IterationRecord.
+# Iterations with is_production runs gain status="production" and inherit
+# the version's promoted_at timestamp.
+# ---------------------------------------------------------------------------
+
+def _migrate_2_4_0(raw: dict, migrated_by: str) -> dict:
+    for v in raw.get("versions", []):
+        v_promoted_at = v.pop("promoted_at", "")
+        for itr in v.get("iterations", []):
+            has_prod = any(r.get("artifacts", {}).get("is_production", False)
+                           for r in itr.get("runs", []))
+            if has_prod:
+                itr["status"] = "production"
+                itr.setdefault("promoted_at", v_promoted_at)
+            else:
+                itr.setdefault("promoted_at", "")
+    raw["schema_version"] = "2.5.0"
+    return raw
+
+
+MIGRATIONS["2.4.0"] = (
+    _migrate_2_4_0,
+    "Move promoted_at from VersionRecord to IterationRecord; "
+    "mark iterations with production runs as IterationStatus.PRODUCTION.",
+    False,   # minor — auto-applied
+)

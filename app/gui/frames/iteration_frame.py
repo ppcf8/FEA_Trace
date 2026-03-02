@@ -36,12 +36,14 @@ _IMG_EDIT  = ctk.CTkImage(Image.open(_ICONS_DIR / "edit.png"), size=(16, 16))
 
 _ITER_STATUS_BADGE = {
     "WIP":        ("●  WIP",        "#4A90D9"),
+    "production": ("●  Production", "#2D8A4E"),
     "deprecated": ("●  Deprecated", "#888888"),
 }
 
 _ITER_STATUS_LABELS = {
-    IterationStatus.DEPRECATED: ("Mark Deprecated", "#888888"),
-    IterationStatus.WIP:        ("Revert to WIP",   "#4A90D9"),
+    IterationStatus.PRODUCTION: ("Promote to Production", "#2D8A4E"),
+    IterationStatus.DEPRECATED: ("Mark Deprecated",       "#888888"),
+    IterationStatus.WIP:        ("Revert to WIP",         "#4A90D9"),
 }
 
 _COL_WEIGHTS = {
@@ -207,18 +209,32 @@ class IterationFrame(ctk.CTkFrame):
                 font=ctk.CTkFont(size=12, weight="bold"),
                 anchor="w", width=110,
             ).grid(row=2, column=col_i * 2,
-                   padx=(16, 4), pady=(0, 12), sticky="w")
+                   padx=(16, 4), pady=(0, 6), sticky="w")
             val = ctk.CTkLabel(
                 panel, text="—",
                 font=ctk.CTkFont(size=12), anchor="w",
             )
             val.grid(row=2, column=col_i * 2 + 1,
-                     padx=(0, 24), pady=(0, 12), sticky="w")
+                     padx=(0, 24), pady=(0, 6), sticky="w")
             self._meta[key] = val
+
+        # Promoted On row (hidden until iteration is promoted)
+        self._promoted_on_key = ctk.CTkLabel(
+            panel, text="Promoted On",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            anchor="w", width=110,
+        )
+        self._promoted_on_key.grid(row=3, column=0, padx=(16, 4), pady=(0, 12), sticky="w")
+        self._meta["_promoted_on"] = ctk.CTkLabel(
+            panel, text="—", font=ctk.CTkFont(size=12), anchor="w")
+        self._meta["_promoted_on"].grid(row=3, column=1, columnspan=3,
+                                        padx=(0, 24), pady=(0, 12), sticky="w")
+        self._promoted_on_key.grid_remove()
+        self._meta["_promoted_on"].grid_remove()
 
         # Transition buttons + Edit (right column)
         self._transition_frame = ctk.CTkFrame(panel, fg_color="transparent")
-        self._transition_frame.grid(row=0, column=4, rowspan=3,
+        self._transition_frame.grid(row=0, column=4, rowspan=4,
                                     padx=(0, 16), pady=12, sticky="ne")
 
     def _build_notes_panel(self) -> None:
@@ -361,6 +377,14 @@ class IterationFrame(ctk.CTkFrame):
         self._meta["_created_by"].configure(text=i.created_by)
         self._meta["_created_on"].configure(text=i.created_on)
 
+        if i.promoted_at:
+            self._meta["_promoted_on"].configure(text=i.promoted_at)
+            self._promoted_on_key.grid()
+            self._meta["_promoted_on"].grid()
+        else:
+            self._promoted_on_key.grid_remove()
+            self._meta["_promoted_on"].grid_remove()
+
         notes_text = "\n".join(f"• {n}" for n in i.notes) if i.notes else "—"
         self._notes_label.configure(text=notes_text)
 
@@ -372,9 +396,9 @@ class IterationFrame(ctk.CTkFrame):
             fg_color=badge_color, text_color="#FFFFFF",
         )
 
-        is_version_wip = (v.status == VersionStatus.WIP)
-        is_iter_wip    = (i.status == IterationStatus.WIP)
-        is_editable    = is_version_wip and is_iter_wip
+        is_version_wip  = (v.status == VersionStatus.WIP)
+        is_iter_wip     = (i.status == IterationStatus.WIP)
+        is_editable     = is_version_wip and is_iter_wip
         self._new_run_btn.configure(state="normal" if is_editable else "disabled")
 
         self._populate_transition_buttons(i.status, is_version_wip)
@@ -419,10 +443,14 @@ class IterationFrame(ctk.CTkFrame):
 
         for target in allowed:
             label, color = _ITER_STATUS_LABELS.get(target, (target.value.title(), None))
+            if target == IterationStatus.PRODUCTION:
+                cmd = self._on_promote_iteration
+            else:
+                cmd = lambda t=target: self._on_iter_status_change(t)
             kwargs = dict(
-                text=label, width=160, height=30,
+                text=label, width=180, height=30,
                 font=ctk.CTkFont(size=12),
-                command=lambda t=target: self._on_iter_status_change(t),
+                command=cmd,
             )
             if color:
                 kwargs["fg_color"] = color
@@ -452,6 +480,44 @@ class IterationFrame(ctk.CTkFrame):
 
         self._window.refresh_sidebar()
         self._window.set_status(f"Iteration {self._iter_id} → {target.value}")
+        self.load(self._project, self._version_id, self._iter_id)
+
+    def _on_promote_iteration(self) -> None:
+        if not all([self._project, self._version_id, self._iter_id]):
+            return
+        from app.gui.dialogs.promote_to_production_dialog import PromoteToProductionDialog
+        dlg = PromoteToProductionDialog(
+            self._window, self._project, self._version_id, self._iter_id)
+        self._window.wait_window(dlg)
+        if dlg.result is None:
+            return
+        try:
+            warnings = self._project.promote_iteration_to_production(
+                self._version_id, self._iter_id, dlg.result)
+        except Exception as exc:
+            self._show_error("Promote Failed", str(exc))
+            return
+
+        # Offer to also mark the version as PRODUCTION if it is still WIP
+        v = self._project._get_version(self._version_id)
+        if v.status == VersionStatus.WIP:
+            from tkinter import messagebox
+            if messagebox.askyesno(
+                "Mark Version as Production?",
+                f"Version {self._version_id} is still WIP.\n\n"
+                "Mark it as Production too? This will lock version edits "
+                "and prevent new iterations.",
+                parent=self._window,
+            ):
+                self._project.update_version_status(
+                    self._version_id, VersionStatus.PRODUCTION)
+
+        warn_count = sum(len(w) for w in warnings.values())
+        msg = f"Iteration {self._iter_id} promoted to Production"
+        if warn_count:
+            msg += f" — {warn_count} artifact warning(s)"
+        self._window.refresh_sidebar()
+        self._window.set_status(msg)
         self.load(self._project, self._version_id, self._iter_id)
 
     def _populate_table(self, i) -> None:
@@ -527,6 +593,7 @@ class IterationFrame(ctk.CTkFrame):
             run = self._project._get_run(i, run_id)
             is_prod      = run.artifacts.is_production
             is_iter_depr = (i.status == IterationStatus.DEPRECATED)
+            is_iter_prod = (i.status == IterationStatus.PRODUCTION)
 
             t    = tokens()
             menu = tk.Menu(
@@ -539,7 +606,7 @@ class IterationFrame(ctk.CTkFrame):
             )
             menu.add_command(
                 label=f"Delete Run {run_id:02d}…",
-                state="disabled" if (is_prod or is_iter_depr) else "normal",
+                state="disabled" if (is_prod or is_iter_depr or is_iter_prod) else "normal",
                 command=lambda: self._window.request_delete_run(
                     str(self._project.path),
                     self._version_id,

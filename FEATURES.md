@@ -127,6 +127,37 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 ## Status State Machines
 
+- **Iteration production status — promote-to-production at iteration level** —
+  `IterationStatus` gains a `PRODUCTION` state. Allowed transitions: `WIP → PRODUCTION`,
+  `WIP → DEPRECATED`, `PRODUCTION → WIP` (reason required), `DEPRECATED → WIP` (reason
+  required). Promotion is an iteration-level action: `IterationFrame` gains a
+  **"Promote to Production"** button (green) that opens a refactored
+  `PromoteToProductionDialog` scoped to a single iteration's runs. On confirm,
+  `FEAProject.promote_iteration_to_production()` clears all existing `is_production` flags
+  in the iteration, marks only the selected run IDs, sets `i.status = PRODUCTION`, records
+  `i.promoted_at`, and auto-appends a `[Promoted to Production] on … by … — Runs: …`
+  audit note (no user text required). After promotion, if the parent version is still WIP a
+  Yes/No dialog offers to mark it as PRODUCTION too (requires at least one PRODUCTION
+  iteration — enforced in `update_version_status`). `VersionFrame` keeps a **"Promote to
+  Production"** button but blocks the transition unless at least one iteration is PRODUCTION.
+  Reverting a PRODUCTION iteration to WIP clears `promoted_at` and all
+  `run.artifacts.is_production` flags. `IterationFrame` shows a "Promoted On" metadata row
+  and a green `● Production` status badge. Sidebar shows `● Production` suffix in green for
+  PRODUCTION iterations. PRODUCTION iteration: Edit disabled, New Run disabled, Delete Run
+  disabled, all Run-level edits locked. `promoted_at` moved from `VersionRecord` to
+  `IterationRecord`. Note format updated: `[Reverted to WIP] from {status} on {date} by
+  {user} — {reason}` and `[Promoted to Production] on {date} by {user} — Runs: …`. Both
+  `EditVersionDialog` and `EditIterationDialog` display system audit notes in a read-only
+  **"Audit Log"** section. Schema bumped `2.4.0 → 2.5.0`; auto-migration moves `promoted_at`
+  from version to iteration and sets `status: "production"` on iterations that have
+  production-flagged runs.
+  `schema.py`, `app/core/migration.py`, `app/core/models.py`,
+  `app/gui/frames/iteration_frame.py`, `app/gui/frames/version_frame.py`,
+  `app/gui/frames/run_frame.py`, `app/gui/sidebar.py`,
+  `app/gui/dialogs/promote_to_production_dialog.py`,
+  `app/gui/dialogs/edit_version_dialog.py`,
+  `app/gui/dialogs/edit_iteration_dialog.py` _(2026-03-02)_
+
 - **Iteration deprecated status** — `IterationRecord` gains a `status: IterationStatus`
   field (`WIP` / `DEPRECATED`) and a `notes: list[str]` audit list. Allowed transitions:
   `WIP → DEPRECATED` and `DEPRECATED → WIP`; reverting to WIP requires a mandatory reason
@@ -304,31 +335,28 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   show the underscore format as a valid example.
   `app/gui/dialogs/edit_artifacts_dialog.py` _(2026-02-26)_
 
-- **Promote to Production Enhancement** — Promoting a version to PRODUCTION now opens
-  `PromoteToProductionDialog`: a `CTkToplevel` listing all runs grouped by iteration with
-  checkboxes. Previously-flagged production runs are pre-checked. On confirm,
-  `FEAProject.promote_version_to_production()` clears all existing `is_production` flags,
-  marks only the selected `(iter_id, run_id)` pairs, records a `promoted_at` timestamp
-  in `VersionRecord`, and returns per-run artifact warnings. The `VersionFrame` shows a
-  "Promoted On" metadata row (hidden when `promoted_at` is empty). On `RunFrame`, the
-  per-run toggle switch is replaced by a read-only label ("Supports production release ✓"
-  / "Not a production run —") when the parent version is not WIP; the Edit and Artifacts
-  Edit buttons are also locked. Reverting a version to WIP (via `update_version_status`)
-  clears `promoted_at` and resets all run `is_production` flags to `False`.
-  Schema bumped `2.2.0 → 2.3.0`; auto-migration adds `promoted_at: ""` to existing
-  version records.
+- **Promote to Production Enhancement** _(superseded by "Iteration production status" in schema 2.5.0)_ —
+  Promoting a version to PRODUCTION now opens `PromoteToProductionDialog`: a `CTkToplevel` listing all
+  runs grouped by iteration with checkboxes. Previously-flagged production runs are pre-checked. On
+  confirm, `FEAProject.promote_version_to_production()` clears all existing `is_production` flags,
+  marks only the selected `(iter_id, run_id)` pairs, records a `promoted_at` timestamp in
+  `VersionRecord`, and returns per-run artifact warnings. The `VersionFrame` shows a "Promoted On"
+  metadata row (hidden when `promoted_at` is empty). On `RunFrame`, the per-run toggle switch is
+  replaced by a read-only label when the parent version is not WIP; the Edit and Artifacts Edit buttons
+  are also locked. Reverting a version to WIP clears `promoted_at` and resets all `is_production` flags.
+  Schema bumped `2.2.0 → 2.3.0`; auto-migration adds `promoted_at: ""` to existing version records.
   `schema.py`, `app/core/migration.py`, `app/core/models.py`,
   `app/gui/dialogs/promote_to_production_dialog.py`,
   `app/gui/frames/version_frame.py`, `app/gui/frames/run_frame.py` _(2026-02-27)_
 
-- **Promote to Production — WIP and empty-selection guards** — `PromoteToProductionDialog._on_confirm()`
-  now enforces two pre-conditions before allowing promotion: (1) every run in the version (regardless
-  of checkbox state) must have a terminal status — if any run is still WIP, the existing `_error_label`
-  (row 4, red) is populated with the offending run identifiers (e.g. `I01 Run 01`) and the dialog stays
-  open; (2) at least one run checkbox must be checked — an empty selection surfaces the same label with
-  a distinct message. The `RunFrame` production switch mirrors this rule: `_on_production_toggle()`
-  blocks toggling a WIP run to production, reverts the switch to `False`, and shows a status-bar
-  warning; toggling OFF is always permitted.
+- **Promote to Production — WIP and empty-selection guards** _(superseded by "Iteration production status" in schema 2.5.0)_ —
+  `PromoteToProductionDialog._on_confirm()` now enforces two pre-conditions before allowing promotion:
+  (1) every run in the version (regardless of checkbox state) must have a terminal status — if any run
+  is still WIP, the existing `_error_label` (row 4, red) is populated with the offending run identifiers
+  (e.g. `I01 Run 01`) and the dialog stays open; (2) at least one run checkbox must be checked — an
+  empty selection surfaces the same label with a distinct message. The `RunFrame` production switch
+  mirrors this rule: `_on_production_toggle()` blocks toggling a WIP run to production, reverts the
+  switch to `False`, and shows a status-bar warning; toggling OFF is always permitted.
   `app/gui/dialogs/promote_to_production_dialog.py`, `app/gui/frames/run_frame.py` _(2026-02-26)_
 
 - **Run deletion** — a **Delete Run** button (red, `delete.png` icon) appears in the `RunFrame`

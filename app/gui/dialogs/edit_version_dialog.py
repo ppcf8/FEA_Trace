@@ -8,16 +8,16 @@ import customtkinter as ctk
 
 from schema import VersionRecord
 
-_REVERT_PREFIX = "[REVERTED"
+_SYSTEM_NOTE_PREFIXES = ("[Reverted", "[Promoted", "[REVERTED")
 
 
 class EditVersionDialog(ctk.CTkToplevel):
     """
     Pre-filled edit dialog for an existing VersionRecord.
 
-    Notes are split into user notes (editable) and system/revert notes
-    (read-only audit entries prefixed with "[REVERTED").  On save, system
-    notes are always preserved unchanged and appended after user notes.
+    Notes are split into user notes (editable) and system audit notes
+    (read-only entries prefixed with "[Reverted", "[Promoted", or legacy "[REVERTED").
+    On save, system notes are always preserved unchanged and appended after user notes.
 
     result: (description: str, notes: list[str], created_by: str) | None
     """
@@ -31,11 +31,11 @@ class EditVersionDialog(ctk.CTkToplevel):
         self.result = None
         self._version = version
 
-        # Separate editable user notes from immutable system/revert entries
+        # Separate editable user notes from immutable system audit entries
         self._user_notes   = [n for n in version.notes
-                               if not n.startswith(_REVERT_PREFIX)]
+                               if not any(n.startswith(p) for p in _SYSTEM_NOTE_PREFIXES)]
         self._system_notes = [n for n in version.notes
-                               if n.startswith(_REVERT_PREFIX)]
+                               if any(n.startswith(p) for p in _SYSTEM_NOTE_PREFIXES)]
 
         height = 440 + (110 if self._system_notes else 0)
         self.geometry(f"520x{height}")
@@ -93,10 +93,10 @@ class EditVersionDialog(ctk.CTkToplevel):
         ctk.CTkEntry(form, textvariable=self._created_by_var,
                      width=200).grid(row=3, column=1, pady=6, sticky="w")
 
-        # Revert audit log (read-only) — only shown when entries exist
+        # Audit log (read-only) — only shown when entries exist
         if self._system_notes:
             ctk.CTkLabel(
-                form, text="Revert Log",
+                form, text="Audit Log",
                 font=ctk.CTkFont(size=12), anchor="nw",
                 text_color="gray",
             ).grid(row=4, column=0, padx=(0, 12), pady=(6, 6), sticky="nw")
