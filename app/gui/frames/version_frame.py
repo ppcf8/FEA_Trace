@@ -13,7 +13,9 @@ from PIL import Image
 
 from schema import IterationStatus, VersionStatus, VERSION_STATUS_TRANSITIONS
 from app.core.models import FEAProject
-from app.gui.theme import apply_table_style, make_scrollbar, add_hint
+from app.gui.theme import (apply_table_style, make_scrollbar, add_hint,
+                           AUDIT_NOTE_PREFIXES, parse_audit_note,
+                           autofit_tree_columns, show_audit_detail_popup)
 from app.gui.hints import VERSION_TOOLTIP
 
 _ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
@@ -148,12 +150,54 @@ class VersionFrame(ctk.CTkFrame):
             anchor="nw", width=100,
         ).grid(row=0, column=0, padx=(0, 4), sticky="nw")
 
+        # Row 0: user-editable notes (free text)
         self._notes_label = ctk.CTkLabel(
             panel, text="",
             font=ctk.CTkFont(size=12),
             anchor="nw", justify="left", wraplength=600,
         )
         self._notes_label.grid(row=0, column=1, sticky="w")
+
+        # Row 1: audit log table (system notes only, hidden until populated)
+        self._audit_panel = ctk.CTkFrame(panel, fg_color="transparent")
+        self._audit_panel.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+        self._audit_panel.columnconfigure(0, weight=1)
+
+        self._audit_tree = ttk.Treeview(
+            self._audit_panel, style="VersionAudit.Treeview",
+            columns=("event", "date", "by", "details"),
+            show="headings", height=7,
+        )
+        self._audit_tree.heading("event",   text="Event",   anchor="center")
+        self._audit_tree.heading("date",    text="Date",    anchor="w")
+        self._audit_tree.heading("by",      text="By",      anchor="w")
+        self._audit_tree.heading("details", text="Details", anchor="w")
+        self._audit_tree.column("event",   width=160, minwidth=100, stretch=False, anchor="center")
+        self._audit_tree.column("date",    width=140, minwidth=100, stretch=False, anchor="w")
+        self._audit_tree.column("by",      width=90,  minwidth=60,  stretch=False, anchor="w")
+        self._audit_tree.column("details", width=200, minwidth=80,  stretch=True,  anchor="w")
+        self._audit_tree.grid(row=0, column=0, sticky="ew")
+
+        self._audit_sb = make_scrollbar(self._audit_panel, "vertical", self._audit_tree.yview)
+        self._audit_tree.configure(yscrollcommand=self._audit_sb.set)
+
+        self._audit_tree.bind("<Double-1>", self._on_audit_double_click)
+
+        self._audit_panel.grid_remove()  # hidden until notes exist
+
+    def _on_audit_double_click(self, event) -> None:
+        tree = self._audit_tree
+        if tree.identify_region(event.x, event.y) != "cell":
+            return
+        iid = tree.focus()
+        if not iid:
+            return
+        values = tree.item(iid, "values")
+        show_audit_detail_popup(
+            self._window,
+            ["Event", "Date", "By", "Details"],
+            values,
+        )
 
     def _build_iter_table(self) -> None:
         section = ctk.CTkFrame(self, fg_color="transparent")
@@ -260,8 +304,27 @@ class VersionFrame(ctk.CTkFrame):
         self._meta["_created_by"].configure(text=v.created_by)
         self._meta["_created_on"].configure(text=v.created_on)
 
-        notes_text = "\n".join(f"• {n}" for n in v.notes) if v.notes else "—"
-        self._notes_label.configure(text=notes_text)
+        apply_table_style("VersionAudit.Treeview")
+        user_notes   = [n for n in v.notes if not any(n.startswith(p) for p in AUDIT_NOTE_PREFIXES)]
+        system_notes = [n for n in v.notes if     any(n.startswith(p) for p in AUDIT_NOTE_PREFIXES)]
+
+        self._notes_label.configure(
+            text="\n".join(f"• {n}" for n in user_notes)
+                 if user_notes else ("—" if not system_notes else ""))
+
+        for item in self._audit_tree.get_children():
+            self._audit_tree.delete(item)
+        if system_notes:
+            for note in reversed(system_notes):
+                self._audit_tree.insert("", "end", values=parse_audit_note(note))
+            autofit_tree_columns(self._audit_tree)
+            if len(system_notes) > 7:
+                self._audit_sb.grid(row=0, column=1, sticky="ns")
+            else:
+                self._audit_sb.grid_remove()
+            self._audit_panel.grid()
+        else:
+            self._audit_panel.grid_remove()
 
         self._populate_transition_buttons(v.status)
         is_wip = v.status == VersionStatus.WIP

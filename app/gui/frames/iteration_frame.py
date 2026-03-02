@@ -22,7 +22,10 @@ from PIL import Image
 from schema import IterationStatus, ITERATION_STATUS_TRANSITIONS, VersionStatus
 from app.config import MODELS_FOLDER
 from app.core.models import FEAProject
-from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, SOLVER_COLORS, add_hint, tokens
+from app.gui.theme import (apply_table_style, make_scrollbar, STATUS_COLORS,
+                           SOLVER_COLORS, add_hint, tokens,
+                           parse_audit_note_extended, autofit_tree_columns,
+                           show_audit_detail_popup)
 from app.gui.hints import ITERATION_TOOLTIP
 
 _ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
@@ -240,20 +243,60 @@ class IterationFrame(ctk.CTkFrame):
     def _build_notes_panel(self) -> None:
         panel = ctk.CTkFrame(self, fg_color="transparent")
         panel.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 8))
-        panel.columnconfigure(1, weight=1)
+        panel.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            panel, text="Notes",
+            panel, text="Audit Log",
             font=ctk.CTkFont(size=12, weight="bold"),
-            anchor="nw", width=110,
-        ).grid(row=0, column=0, padx=(0, 4), sticky="nw")
+            anchor="nw",
+        ).grid(row=0, column=0, sticky="w", pady=(0, 4))
 
+        # Placeholder shown when there are no audit entries
         self._notes_label = ctk.CTkLabel(
-            panel, text="",
-            font=ctk.CTkFont(size=12),
-            anchor="nw", justify="left", wraplength=600,
+            panel, text="—",
+            font=ctk.CTkFont(size=12), anchor="nw",
         )
-        self._notes_label.grid(row=0, column=1, sticky="w")
+        self._notes_label.grid(row=1, column=0, sticky="w")
+
+        # Audit log table — full width, 5 columns, fixed height of 7 rows
+        self._audit_panel = ctk.CTkFrame(panel, fg_color="transparent")
+        self._audit_panel.columnconfigure(0, weight=1)
+
+        self._audit_tree = ttk.Treeview(
+            self._audit_panel, style="IterAudit.Treeview",
+            columns=("event", "date", "by", "runs", "details"),
+            show="headings", height=7,
+        )
+        self._audit_tree.heading("event",   text="Event",   anchor="center")
+        self._audit_tree.heading("date",    text="Date",    anchor="w")
+        self._audit_tree.heading("by",      text="By",      anchor="w")
+        self._audit_tree.heading("runs",    text="Runs",    anchor="w")
+        self._audit_tree.heading("details", text="Details", anchor="w")
+        self._audit_tree.column("event",   width=160, minwidth=100, stretch=False, anchor="center")
+        self._audit_tree.column("date",    width=140, minwidth=100, stretch=False, anchor="w")
+        self._audit_tree.column("by",      width=90,  minwidth=60,  stretch=False, anchor="w")
+        self._audit_tree.column("runs",    width=60,  minwidth=40,  stretch=False, anchor="w")
+        self._audit_tree.column("details", width=200, minwidth=80,  stretch=True,  anchor="w")
+        self._audit_tree.grid(row=0, column=0, sticky="ew")
+
+        self._audit_sb = make_scrollbar(self._audit_panel, "vertical", self._audit_tree.yview)
+        self._audit_tree.configure(yscrollcommand=self._audit_sb.set)
+
+        self._audit_tree.bind("<Double-1>", self._on_audit_double_click)
+
+    def _on_audit_double_click(self, event) -> None:
+        tree = self._audit_tree
+        if tree.identify_region(event.x, event.y) != "cell":
+            return
+        iid = tree.focus()
+        if not iid:
+            return
+        values = tree.item(iid, "values")
+        show_audit_detail_popup(
+            self._window,
+            ["Event", "Date", "By", "Runs", "Details"],
+            values,
+        )
 
     def _build_run_table(self) -> None:
         section = ctk.CTkFrame(self, fg_color="transparent")
@@ -385,8 +428,22 @@ class IterationFrame(ctk.CTkFrame):
             self._promoted_on_key.grid_remove()
             self._meta["_promoted_on"].grid_remove()
 
-        notes_text = "\n".join(f"• {n}" for n in i.notes) if i.notes else "—"
-        self._notes_label.configure(text=notes_text)
+        apply_table_style("IterAudit.Treeview")
+        for item in self._audit_tree.get_children():
+            self._audit_tree.delete(item)
+        if i.notes:
+            for note in reversed(i.notes):
+                self._audit_tree.insert("", "end", values=parse_audit_note_extended(note))
+            autofit_tree_columns(self._audit_tree)
+            if len(i.notes) > 7:
+                self._audit_sb.grid(row=0, column=1, sticky="ns")
+            else:
+                self._audit_sb.grid_remove()
+            self._notes_label.grid_remove()
+            self._audit_panel.grid(row=1, column=0, sticky="ew")
+        else:
+            self._audit_panel.grid_remove()
+            self._notes_label.grid(row=1, column=0, sticky="w")
 
         # Status badge
         badge_text, badge_color = _ITER_STATUS_BADGE.get(

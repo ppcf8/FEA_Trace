@@ -4,11 +4,14 @@ dialogs/edit_iteration_dialog.py
 
 from __future__ import annotations
 
+import tkinter.ttk as ttk
 import customtkinter as ctk
 
 from schema import SolverType, IterationRecord
+from app.gui.theme import (apply_table_style, make_scrollbar,
+                           AUDIT_NOTE_PREFIXES, parse_audit_note)
 
-_SYSTEM_NOTE_PREFIXES = ("[Reverted", "[Promoted", "[REVERTED")
+_SYSTEM_NOTE_PREFIXES = AUDIT_NOTE_PREFIXES
 
 
 class EditIterationDialog(ctk.CTkToplevel):
@@ -39,7 +42,9 @@ class EditIterationDialog(ctk.CTkToplevel):
         self._system_notes = [n for n in iteration.notes
                                if any(n.startswith(p) for p in _SYSTEM_NOTE_PREFIXES)]
 
-        height = 560 + (110 if self._system_notes else 0)
+        n_audit_rows = min(len(self._system_notes), 3)
+        audit_h = (25 + n_audit_rows * 28 + 30) if self._system_notes else 0
+        height = 560 + audit_h
         self.geometry(f"540x{height}")
         self.minsize(540, height)
 
@@ -124,16 +129,39 @@ class EditIterationDialog(ctk.CTkToplevel):
         ctk.CTkEntry(form, textvariable=self._created_by_var,
                      width=200).grid(row=3, column=1, pady=6, sticky="w")
 
-        # Audit log (read-only) — only shown when entries exist
+        # Audit log (read-only table) — only shown when entries exist
         if self._system_notes:
             ctk.CTkLabel(
                 form, text="Audit Log",
                 font=ctk.CTkFont(size=12), anchor="nw",
                 text_color="gray",
-            ).grid(row=4, column=0, padx=(0, 12), pady=(6, 6), sticky="nw")
+            ).grid(row=4, column=0, padx=(0, 12), pady=(6, 4), sticky="nw")
 
-            self._audit_box = ctk.CTkTextbox(form, height=70, wrap="word")
-            self._audit_box.grid(row=4, column=1, pady=(6, 6), sticky="ew")
+            apply_table_style("Audit.Treeview")
+            audit_wrap = ctk.CTkFrame(form, fg_color="transparent")
+            audit_wrap.grid(row=4, column=1, pady=(6, 4), sticky="ew")
+            audit_wrap.columnconfigure(0, weight=1)
+
+            n_rows = min(len(self._system_notes), 3)
+            self._audit_tree = ttk.Treeview(
+                audit_wrap, style="Audit.Treeview",
+                columns=("event", "date", "by", "details"),
+                show="headings", height=n_rows,
+            )
+            self._audit_tree.heading("event",   text="Event",   anchor="center")
+            self._audit_tree.heading("date",    text="Date",    anchor="w")
+            self._audit_tree.heading("by",      text="By",      anchor="w")
+            self._audit_tree.heading("details", text="Details", anchor="w")
+            self._audit_tree.column("event",   width=160, minwidth=100, stretch=False, anchor="center")
+            self._audit_tree.column("date",    width=135, minwidth=100, stretch=False, anchor="w")
+            self._audit_tree.column("by",      width=75,  minwidth=50,  stretch=False, anchor="w")
+            self._audit_tree.column("details", width=150, minwidth=80,  stretch=True,  anchor="w")
+            self._audit_tree.grid(row=0, column=0, sticky="ew")
+
+            if len(self._system_notes) > 3:
+                sb = make_scrollbar(audit_wrap, "vertical", self._audit_tree.yview)
+                self._audit_tree.configure(yscrollcommand=sb.set)
+                sb.grid(row=0, column=1, sticky="ns")
 
         # Error label
         self._error_label = ctk.CTkLabel(
@@ -167,8 +195,9 @@ class EditIterationDialog(ctk.CTkToplevel):
         self._created_by_var.set(i.created_by)
 
         if self._system_notes:
-            self._audit_box.insert("1.0", "\n".join(self._system_notes))
-            self._audit_box.configure(state="disabled")
+            for note in reversed(self._system_notes):
+                ev, dt, by, details = parse_audit_note(note)
+                self._audit_tree.insert("", "end", values=(ev, dt, by, details))
 
     def _on_confirm(self) -> None:
         solver_str  = self._solver_var.get()

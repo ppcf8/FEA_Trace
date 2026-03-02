@@ -8,6 +8,7 @@ in individual frames.
 
 from __future__ import annotations
 
+import re
 import tkinter as tk
 import tkinter.ttk as ttk
 import customtkinter as ctk
@@ -260,3 +261,113 @@ class Tooltip:
 def add_hint(widget: tk.Widget, text: str) -> None:
     """Attach a hover tooltip to *widget*. Tooltip appears after ~600 ms."""
     Tooltip(widget, text)
+
+
+# ---------------------------------------------------------------------------
+# 6. Audit Note Parser
+# ---------------------------------------------------------------------------
+
+AUDIT_NOTE_PREFIXES = ("[Reverted", "[Promoted", "[REVERTED")
+
+
+def parse_audit_note(note: str) -> tuple[str, str, str, str]:
+    """
+    Parse a system audit note into (event, date, by, details).
+
+    Handles:
+      [Promoted to Production] on {date} by {user} — Runs: {runs}
+      [Reverted to WIP] from {status} on {date} by {user} — {reason}
+      [REVERTED to WIP from {status} by {user} on {date}] {reason}  (legacy)
+    """
+    m = re.match(r'\[Promoted to Production\] on (.+?) by (.+?) — Runs: (.+)', note)
+    if m:
+        return "Promoted to Production", m.group(1), m.group(2), m.group(3)
+    m = re.match(r'\[Reverted to WIP\] from (\S+) on (.+?) by (.+?) — (.+)', note)
+    if m:
+        return "Reverted to WIP", m.group(2), m.group(3), m.group(4)
+    m = re.match(r'\[REVERTED to WIP from (\S+) by (.+?) on (.+?)\] (.+)', note)
+    if m:
+        return "Reverted to WIP", m.group(3), m.group(2), m.group(4)
+    return "System Note", "", "", note
+
+
+def parse_audit_note_extended(note: str) -> tuple[str, str, str, str, str]:
+    """
+    Parse a system audit note into (event, date, by, runs, details).
+    Used by frame tables that show a dedicated Runs column.
+
+    Promoted: runs = "01, 02"  details = ""
+    Reverted: runs = ""        details = user reason only
+    """
+    m = re.match(r'\[Promoted to Production\] on (.+?) by (.+?) — Runs: (.+)', note)
+    if m:
+        runs = ", ".join(r.strip().replace("Run ", "").strip()
+                         for r in m.group(3).split(","))
+        return "Promoted to Production", m.group(1), m.group(2), runs, ""
+    m = re.match(r'\[Reverted to WIP\] from (\S+) on (.+?) by (.+?) — (.+)', note)
+    if m:
+        return "Reverted to WIP", m.group(2), m.group(3), "—", m.group(4)
+    m = re.match(r'\[REVERTED to WIP from (\S+) by (.+?) on (.+?)\] (.+)', note)
+    if m:
+        return "Reverted to WIP", m.group(3), m.group(2), "—", m.group(4)
+    return "System Note", "", "", "—", note
+
+
+def show_audit_detail_popup(parent, col_names: list[str], values: tuple) -> None:
+    """
+    Open a read-only popup showing all fields of one audit log row.
+    The last field named "Details" is rendered as a wrapped textbox.
+    Call from a <Double-1> handler on an audit Treeview.
+    """
+    popup = ctk.CTkToplevel(parent)
+    popup.title("Audit Entry")
+    popup.grab_set()
+    popup.resizable(True, True)
+    popup.geometry("520x300")
+
+    form = ctk.CTkFrame(popup, fg_color="transparent")
+    form.pack(fill="both", expand=True, padx=20, pady=16)
+    form.columnconfigure(1, weight=1)
+
+    for row_idx, (label, val) in enumerate(zip(col_names, values)):
+        ctk.CTkLabel(
+            form, text=f"{label}:",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            anchor="e", width=70,
+        ).grid(row=row_idx, column=0, padx=(0, 10), pady=3, sticky="ne")
+
+        if label == "Details":
+            form.rowconfigure(row_idx, weight=1)
+            box = ctk.CTkTextbox(form, height=80, wrap="word")
+            box.grid(row=row_idx, column=1, sticky="nsew", pady=3)
+            box.insert("1.0", val)
+            box.configure(state="disabled")
+        else:
+            ctk.CTkLabel(
+                form, text=val,
+                font=ctk.CTkFont(size=12),
+                anchor="nw", justify="left", wraplength=380,
+            ).grid(row=row_idx, column=1, sticky="w", pady=3)
+
+    ctk.CTkButton(popup, text="Close", width=80,
+                  command=popup.destroy).pack(pady=(0, 16))
+
+
+def autofit_tree_columns(tree: ttk.Treeview) -> None:
+    """
+    Resize each column to fit its heading and all row values.
+    The last column keeps stretch=True to fill remaining space;
+    all others are fixed at their measured width.
+    """
+    import tkinter.font as tkfont
+    head_font = tkfont.Font(family="Segoe UI", size=11, weight="bold")
+    cell_font = tkfont.Font(family="Segoe UI", size=11)
+    pad = 20
+    cols = list(tree["columns"])
+    for idx, col in enumerate(cols):
+        col_w = head_font.measure(tree.heading(col)["text"]) + pad
+        for iid in tree.get_children():
+            w = cell_font.measure(str(tree.set(iid, col))) + pad
+            col_w = max(col_w, w)
+        is_last = (idx == len(cols) - 1)
+        tree.column(col, width=col_w, minwidth=max(col_w, 40), stretch=is_last)
