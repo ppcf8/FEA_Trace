@@ -15,7 +15,8 @@ from schema import IterationStatus, VersionStatus, VERSION_STATUS_TRANSITIONS
 from app.core.models import FEAProject
 from app.gui.theme import (apply_table_style, make_scrollbar, add_hint,
                            AUDIT_NOTE_PREFIXES, parse_audit_note,
-                           autofit_tree_columns, show_audit_detail_popup)
+                           autofit_tree_columns, show_audit_detail_popup,
+                           show_comm_detail_popup)
 from app.gui.hints import VERSION_TOOLTIP
 
 _ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
@@ -193,10 +194,43 @@ class VersionFrame(ctk.CTkFrame):
         if not iid:
             return
         values = tree.item(iid, "values")
+        # "Sent Output" rows — show the richer communications popup.
+        if values[0] == "Sent Output":
+            comm = self._find_comm(values[1], values[2])
+            if comm is not None:
+                self._show_comm_popup(comm)
+                return
         show_audit_detail_popup(
             self._window,
             ["Event", "Date", "By", "Details"],
             values,
+        )
+
+    def _find_comm(self, sent_at: str, sent_by: str):
+        """Return the matching CommunicationRecord for this version, or None."""
+        for v in self._project.entity.versions:
+            if v.id == self._version_id:
+                for c in v.communications:
+                    if c.sent_at == sent_at and c.sent_by == sent_by:
+                        return c
+        return None
+
+    def _show_comm_popup(self, comm) -> None:
+        from app.config import COMMUNICATIONS_FOLDER
+
+        comms_dir = self._project.path / COMMUNICATIONS_FOLDER
+
+        def _on_add_eml(dest: str):
+            comm.eml_filenames.append(dest)
+            self._project._write()
+
+        def _on_files_changed():
+            self.load(self._project, self._version_id)
+
+        show_comm_detail_popup(
+            self._window, comm, comms_dir, version_id=self._version_id,
+            on_add_eml=_on_add_eml,
+            on_files_changed=_on_files_changed,
         )
 
     def _build_iter_table(self) -> None:
@@ -281,6 +315,16 @@ class VersionFrame(ctk.CTkFrame):
             command=self._on_new_iteration,
         )
         self._new_iter_btn.pack(side="left")
+
+        self._send_output_btn = ctk.CTkButton(
+            bar, text="Send Output",
+            width=130, height=36,
+            font=ctk.CTkFont(size=13),
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=self._on_send_output,
+        )
+        self._send_output_btn.pack(side="left", padx=(8, 0))
 
     # ------------------------------------------------------------------
     # Load
@@ -587,6 +631,16 @@ class VersionFrame(ctk.CTkFrame):
     # ------------------------------------------------------------------
     # Events
     # ------------------------------------------------------------------
+
+    def _on_send_output(self) -> None:
+        if not self._project or not self._version_id:
+            return
+        from app.gui.dialogs.send_output_dialog import SendOutputDialog
+        dlg = SendOutputDialog(self._window, self._project, self._version_id)
+        self._window.wait_window(dlg)
+        if dlg.result is not None:
+            self.load(self._project, self._version_id)
+            self._window.set_status("Communication logged.")
 
     def _on_iter_select(self, _event) -> None:
         sel = self._table.selection()
