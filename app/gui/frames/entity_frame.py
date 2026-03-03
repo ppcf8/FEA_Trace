@@ -602,14 +602,18 @@ class EntityFrame(ctk.CTkFrame):
         if self._project is None:
             return
         from app.gui.dialogs.new_version_dialog import NewVersionDialog
-        dlg = NewVersionDialog(self._window)
+        session_projects = [p for p in self._window.get_open_projects()
+                            if str(p.path) != str(self._project.path)]
+        dlg = NewVersionDialog(self._window, session_projects=session_projects)
         self._window.wait_window(dlg)
         if dlg.result is None:
             return
 
-        description, notes, created_by = dlg.result
+        description, notes, created_by, step_files, source_components = dlg.result
         try:
-            self._project.add_version(description, created_by, notes)
+            v = self._project.add_version(description, created_by, notes, source_components)
+            if step_files:
+                self._project.copy_version_source_files(v.id, step_files)
         except Exception as exc:
             self._show_error("Create Version Failed", str(exc))
             return
