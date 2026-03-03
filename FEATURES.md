@@ -432,6 +432,34 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/gui/theme.py`, `app/gui/frames/version_frame.py`, `app/gui/frames/entity_frame.py`,
   `app/gui/frames/iteration_frame.py`, `app/gui/dialogs/send_output_dialog.py` _(2026-03-03)_
 
+- **Send Output dialog — email body refinement, Courier New clipboard, To field removal** —
+  `_build_body()` revised to a structured plain-text report: `=` × 65 borders, header fields
+  (`Project`, `Entity`, `Version`, `Description`) colon-aligned with 12-char label padding and
+  multi-line continuation indent matching the value start column; an optional
+  `--- Step files ---` section (scans `01_Source/{version_id}/` on disk, omitted when empty); and
+  `--- Reported Results ---` grouped by iteration showing `[WIP]`/`[PRODUCTION]` status, last-run
+  date, iteration description (always present), and selected run numbers only. The body textbox is
+  **read-only** (`state="disabled"`) and **auto-regenerates** whenever run checkboxes or the
+  Subject field change (`_on_selection_change`). **"Open Draft in Outlook"** no longer embeds the
+  body in the `mailto:` URI; instead it places the body on the Windows clipboard as `CF_HTML`
+  (a `<pre style="font-family: Courier New">` block) via `ctypes` (no extra dependency), so
+  Ctrl+V in Outlook pastes in Courier New in both Classic and New Outlook. A **Copy** button
+  (`copy.png`) in the Body header provides the same clipboard action on demand with a 2 s
+  "Copied!" transient label. The **To** field is removed from the UI — recipients are added
+  directly in Outlook; `_to_var` is kept internally and still populated from `.eml` import.
+  **Save Record** no longer requires a To value.
+  `app/gui/dialogs/send_output_dialog.py` _(2026-03-03)_
+
+- **Communications table sort and filter** — The Communications `ttk.Treeview` in `EntityFrame`
+  now supports the same sort/filter infrastructure as the Versions summary table. Left-click a
+  heading to sort ascending / descending (▲ / ▼). Right-click a heading for a per-column filter
+  popup (⊿ indicator when active); Subject and .eml columns suppress the filter popup. The Date
+  column offers a ↓ Newest / ↑ Oldest toggle. The **To** column is multi-value: comma-separated
+  recipients are split so each address appears as an independent filter option
+  (`_COMMS_MULTI_VALUE_COLS`). Filters cascade (Excel AutoFilter behaviour). State resets on
+  `load()`.
+  `app/gui/frames/entity_frame.py` _(2026-03-03)_
+
 - **Version source files and assembly components** — every version can now have `.step` /
   `.stp` CAD source files tracked against it. The **New Version** and **Edit Version** dialogs
   gain a "Source Files" section with two ways to add files: **Browse Files…** opens a standard

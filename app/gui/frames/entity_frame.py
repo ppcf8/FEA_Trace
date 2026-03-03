@@ -42,6 +42,10 @@ _COL_WEIGHTS = {
 _NO_FILTER_COLS = frozenset({"description", "iterations"})
 _DATE_COLS      = frozenset({"created_on"})
 
+_COMMS_NO_FILTER_COLS    = frozenset({"subject", "eml"})
+_COMMS_DATE_COLS         = frozenset({"sent_at"})
+_COMMS_MULTI_VALUE_COLS  = frozenset({"to"})   # comma-separated; each recipient is a distinct value
+
 
 def _open_folder(path: Path) -> None:
     try:
@@ -66,6 +70,11 @@ class EntityFrame(ctk.CTkFrame):
         self._sort_reverse: bool         = False
         self._col_filters: dict[str, set[str]] = {}
         self._search_var:  ctk.StringVar        = ctk.StringVar()
+        # Comms table filter/sort state
+        self._comms_all_rows:    list[dict]           = []
+        self._comms_sort_col:    str | None           = None
+        self._comms_sort_reverse: bool                = False
+        self._comms_col_filters: dict[str, set[str]]  = {}
         self._build()
 
     # ------------------------------------------------------------------
@@ -247,17 +256,23 @@ class EntityFrame(ctk.CTkFrame):
         ).grid(row=0, column=0, sticky="w", pady=(0, 6))
 
         cols = ("sent_at", "sent_by", "version", "to", "subject", "eml")
+        self._comms_col_order = cols
+        self._comms_headings  = {
+            "sent_at": ("Date",    "w"),
+            "sent_by": ("By",      "w"),
+            "version": ("Version", "center"),
+            "to":      ("To",      "w"),
+            "subject": ("Subject", "w"),
+            "eml":     (".eml",    "center"),
+        }
         self._comms_tree = ttk.Treeview(
             section, columns=cols, show="headings",
             selectmode="browse", height=5,
             style="EntityComms.Treeview",
         )
-        self._comms_tree.heading("sent_at",  text="Date",    anchor="w")
-        self._comms_tree.heading("sent_by",  text="By",      anchor="w")
-        self._comms_tree.heading("version",  text="Version", anchor="center")
-        self._comms_tree.heading("to",       text="To",      anchor="w")
-        self._comms_tree.heading("subject",  text="Subject", anchor="w")
-        self._comms_tree.heading("eml",      text=".eml",    anchor="center")
+        for col, (lbl, anchor) in self._comms_headings.items():
+            self._comms_tree.heading(col, text=lbl, anchor=anchor,
+                                     command=lambda c=col: self._on_comms_sort(c))
         self._comms_tree.column("sent_at",  width=140, minwidth=100, stretch=False, anchor="w")
         self._comms_tree.column("sent_by",  width=100, minwidth=60,  stretch=False, anchor="w")
         self._comms_tree.column("version",  width=60,  minwidth=40,  stretch=False, anchor="center")
@@ -268,6 +283,7 @@ class EntityFrame(ctk.CTkFrame):
         self._comms_sb = make_scrollbar(section, "vertical", self._comms_tree.yview)
         self._comms_tree.configure(yscrollcommand=self._comms_sb.set)
         self._comms_tree.bind("<Double-1>", self._on_comms_double_click)
+        self._comms_tree.bind("<Button-3>", self._on_comms_heading_right_click)
 
         self._comms_tree.grid(row=1, column=0, sticky="nsew")
         self._comms_sb.grid(row=1, column=1, sticky="ns")
@@ -342,6 +358,10 @@ class EntityFrame(ctk.CTkFrame):
         self._search_var.set("")
         for col in self._col_order:
             self._update_heading(col)
+        self._comms_all_rows     = []
+        self._comms_sort_col     = None
+        self._comms_sort_reverse = False
+        self._comms_col_filters  = {}
         apply_table_style("Entity.Treeview")
         self._populate_table()
         self._populate_comms()
@@ -366,13 +386,11 @@ class EntityFrame(ctk.CTkFrame):
     def _populate_comms(self) -> None:
         from app.config import COMMUNICATIONS_FOLDER
         apply_table_style("EntityComms.Treeview")
-        for item in self._comms_tree.get_children():
-            self._comms_tree.delete(item)
         comms_dir = self._project.path / COMMUNICATIONS_FOLDER
-        rows = []
+        self._comms_all_rows = []
         for v in self._project.entity.versions:
             for c in v.communications:
-                valid = [f for f in c.eml_filenames if (comms_dir / f).exists()]
+                valid   = [f for f in c.eml_filenames if (comms_dir / f).exists()]
                 n_valid = len(valid)
                 n_total = len(c.eml_filenames)
                 if n_valid == 0:
@@ -381,11 +399,41 @@ class EntityFrame(ctk.CTkFrame):
                     eml_ind = "\u2713" if n_total == 1 else f"\u2713{n_total}"
                 else:
                     eml_ind = f"\u2713{n_valid}/{n_total}"
-                rows.append((c.sent_at, c.sent_by, v.id, c.to, c.subject, eml_ind))
-        if rows:
-            rows.sort(key=lambda r: r[0], reverse=True)  # most recent first
-            for row in rows:
-                self._comms_tree.insert("", "end", values=row)
+                self._comms_all_rows.append({
+                    "values": (c.sent_at, c.sent_by, v.id, c.to, c.subject, eml_ind),
+                })
+        for col in self._comms_col_order:
+            self._update_comms_heading(col)
+        self._refresh_comms()
+
+    def _refresh_comms(self) -> None:
+        rows = self._comms_all_rows
+        for col, allowed in self._comms_col_filters.items():
+            if allowed:
+                idx = self._comms_col_order.index(col)
+                if col in _COMMS_DATE_COLS:
+                    rows = [r for r in rows
+                            if str(r["values"][idx]).split(" ")[0] in allowed]
+                elif col in _COMMS_MULTI_VALUE_COLS:
+                    rows = [r for r in rows
+                            if any(v.strip() in allowed
+                                   for v in str(r["values"][idx]).split(","))]
+                else:
+                    rows = [r for r in rows if str(r["values"][idx]) in allowed]
+        if self._comms_sort_col is not None:
+            idx  = self._comms_col_order.index(self._comms_sort_col)
+            rows = sorted(rows,
+                          key=lambda r: str(r["values"][idx]).lower(),
+                          reverse=self._comms_sort_reverse)
+        else:
+            rows = sorted(rows, key=lambda r: str(r["values"][0]), reverse=True)
+
+        for item in self._comms_tree.get_children():
+            self._comms_tree.delete(item)
+        for r in rows:
+            self._comms_tree.insert("", "end", values=r["values"])
+
+        if self._comms_all_rows:
             autofit_tree_columns(self._comms_tree)
             if len(rows) > 5:
                 self._comms_sb.grid(row=1, column=1, sticky="ns")
@@ -559,6 +607,154 @@ class EntityFrame(ctk.CTkFrame):
             popup.destroy()
 
         ctk.CTkButton(btn_row, text="Apply", height=28, font=ctk.CTkFont(size=12),
+                      command=_apply).pack(side="left", fill="x", expand=True, padx=(0, 4))
+        ctk.CTkButton(btn_row, text="Cancel", height=28, font=ctk.CTkFont(size=12),
+                      fg_color="transparent", border_width=1,
+                      text_color=["#1A1A1A", "#DCE4EE"],
+                      command=popup.destroy).pack(side="left", fill="x", expand=True)
+        popup.bind("<Escape>", lambda e: popup.destroy())
+
+    # ------------------------------------------------------------------
+    # Comms table sort / filter
+    # ------------------------------------------------------------------
+
+    def _update_comms_heading(self, col: str) -> None:
+        lbl, _     = self._comms_headings[col]
+        sort_ind   = (" ▼" if self._comms_sort_reverse else " ▲") if self._comms_sort_col == col else ""
+        filter_ind = " ⊿" if self._comms_col_filters.get(col) else ""
+        self._comms_tree.heading(col, text=f"{lbl}{sort_ind}{filter_ind}")
+
+    def _on_comms_sort(self, col: str) -> None:
+        if self._comms_sort_col == col:
+            self._comms_sort_reverse = not self._comms_sort_reverse
+        else:
+            self._comms_sort_col, self._comms_sort_reverse = col, False
+        for c in self._comms_col_order:
+            self._update_comms_heading(c)
+        self._refresh_comms()
+
+    def _on_comms_heading_right_click(self, event) -> None:
+        if self._comms_tree.identify_region(event.x, event.y) != "heading":
+            return
+        col_id = self._comms_tree.identify_column(event.x)
+        if not col_id or col_id == "#0":
+            return
+        col_name = self._comms_col_order[int(col_id[1:]) - 1]
+        if col_name in _COMMS_NO_FILTER_COLS:
+            return
+        self._open_comms_filter_popup(col_name, event.x_root, event.y_root)
+
+    def _open_comms_filter_popup(self, col: str, x_root: int = 0, y_root: int = 0) -> None:
+        col_idx = self._comms_col_order.index(col)
+        is_date = col in _COMMS_DATE_COLS
+
+        candidate_rows = self._comms_all_rows
+        for other_col, allowed in self._comms_col_filters.items():
+            if other_col != col and allowed:
+                other_idx = self._comms_col_order.index(other_col)
+                if other_col in _COMMS_DATE_COLS:
+                    candidate_rows = [r for r in candidate_rows
+                                      if str(r["values"][other_idx]).split(" ")[0] in allowed]
+                elif other_col in _COMMS_MULTI_VALUE_COLS:
+                    candidate_rows = [r for r in candidate_rows
+                                      if any(v.strip() in allowed
+                                             for v in str(r["values"][other_idx]).split(","))]
+                else:
+                    candidate_rows = [r for r in candidate_rows
+                                      if str(r["values"][other_idx]) in allowed]
+
+        is_multi = col in _COMMS_MULTI_VALUE_COLS
+        if is_date:
+            raw_vals = {str(r["values"][col_idx]).split(" ")[0] for r in candidate_rows}
+        elif is_multi:
+            raw_vals = {v.strip()
+                        for r in candidate_rows
+                        for v in str(r["values"][col_idx]).split(",")
+                        if v.strip()}
+        else:
+            raw_vals = {str(r["values"][col_idx]) for r in candidate_rows}
+        unique_vals = sorted(raw_vals, key=str.lower)
+
+        if not unique_vals:
+            return
+        current = self._comms_col_filters.get(col, set())
+
+        popup = ctk.CTkToplevel(self._window)
+        popup.title(f"Filter: {self._comms_headings[col][0]}")
+        popup.resizable(True, True)
+        popup.grab_set()
+        popup.columnconfigure(0, weight=1)
+        popup.rowconfigure(1, weight=1)
+
+        h = min(40 * len(unique_vals) + 130, 400) + (34 if is_date else 0)
+        _f = tkfont.Font(size=11)
+        max_text_w = max((_f.measure(v if v else "(empty)") for v in unique_vals), default=0)
+        popup.geometry(f"{max(220, max_text_w + 80)}x{h}+{x_root}+{y_root}")
+        popup.minsize(180, 150)
+
+        quick = ctk.CTkFrame(popup, fg_color="transparent")
+        quick.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 2))
+        check_vars: dict[str, tk.IntVar] = {}
+
+        ctk.CTkButton(quick, text="All",  width=70, height=26, font=ctk.CTkFont(size=11),
+                      command=lambda: [v.set(1) for v in check_vars.values()]
+                      ).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(quick, text="None", width=70, height=26, font=ctk.CTkFont(size=11),
+                      command=lambda: [v.set(0) for v in check_vars.values()]
+                      ).pack(side="left")
+
+        scroll = ctk.CTkScrollableFrame(popup, fg_color="transparent")
+        scroll.grid(row=1, column=0, sticky="nsew", padx=8, pady=4)
+
+        if is_date:
+            sort_desc = [True]
+
+            def _rebuild_checkboxes():
+                saved = {v: var.get() for v, var in check_vars.items()}
+                for w in scroll.winfo_children():
+                    w.destroy()
+                check_vars.clear()
+                for val in sorted(unique_vals, reverse=sort_desc[0]):
+                    checked = saved.get(val, 1 if (not current or val in current) else 0)
+                    var = tk.IntVar(value=checked)
+                    check_vars[val] = var
+                    ctk.CTkCheckBox(scroll, text=val if val else "(empty)",
+                                    variable=var, font=ctk.CTkFont(size=11)).pack(anchor="w", pady=1)
+
+            def _toggle_sort():
+                sort_desc[0] = not sort_desc[0]
+                sort_btn.configure(text="↓ Newest" if sort_desc[0] else "↑ Oldest")
+                _rebuild_checkboxes()
+
+            sort_btn = ctk.CTkButton(quick, text="↓ Newest", width=72, height=26,
+                                     font=ctk.CTkFont(size=11),
+                                     fg_color="transparent", border_width=1,
+                                     text_color=["#1A1A1A", "#DCE4EE"],
+                                     command=_toggle_sort)
+            sort_btn.pack(side="left", padx=(4, 0))
+            _rebuild_checkboxes()
+        else:
+            for val in unique_vals:
+                checked = 1 if (not current or val in current) else 0
+                var = tk.IntVar(value=checked)
+                check_vars[val] = var
+                ctk.CTkCheckBox(scroll, text=val if val else "(empty)",
+                                variable=var, font=ctk.CTkFont(size=11)).pack(anchor="w", pady=1)
+
+        btn_row = ctk.CTkFrame(popup, fg_color="transparent")
+        btn_row.grid(row=2, column=0, sticky="ew", padx=8, pady=(2, 8))
+
+        def _apply():
+            selected = {v for v, var in check_vars.items() if var.get()}
+            if selected == set(unique_vals):
+                self._comms_col_filters.pop(col, None)
+            else:
+                self._comms_col_filters[col] = selected
+            self._update_comms_heading(col)
+            self._refresh_comms()
+            popup.destroy()
+
+        ctk.CTkButton(btn_row, text="Apply",  height=28, font=ctk.CTkFont(size=12),
                       command=_apply).pack(side="left", fill="x", expand=True, padx=(0, 4))
         ctk.CTkButton(btn_row, text="Cancel", height=28, font=ctk.CTkFont(size=12),
                       fg_color="transparent", border_width=1,

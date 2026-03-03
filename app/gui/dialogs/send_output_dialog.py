@@ -18,8 +18,73 @@ from app.config import COMMUNICATIONS_FOLDER, TIMESTAMP_FORMAT
 from app.core.models import FEAProject
 from schema import CommunicationRecord, RunStatus, IterationStatus
 
+import ctypes
+import ctypes.wintypes
+import html as _html_lib
 import urllib.parse
 import webbrowser
+
+from PIL import Image
+
+_ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
+_IMG_COPY  = ctk.CTkImage(Image.open(_ICONS_DIR / "copy.png"), size=(14, 14))
+
+_k32 = ctypes.windll.kernel32
+_u32 = ctypes.windll.user32
+# argtypes + restype must be set so 64-bit pointer values are never truncated
+# or mis-converted to a 32-bit C int (which causes OverflowError on Win64).
+_k32.GlobalAlloc.argtypes  = [ctypes.c_uint, ctypes.c_size_t]
+_k32.GlobalAlloc.restype   = ctypes.c_void_p
+_k32.GlobalLock.argtypes   = [ctypes.c_void_p]
+_k32.GlobalLock.restype    = ctypes.c_void_p
+_k32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+_u32.OpenClipboard.argtypes    = [ctypes.c_void_p]
+_u32.SetClipboardData.argtypes = [ctypes.c_uint, ctypes.c_void_p]
+
+
+def _set_html_clipboard(html_fragment: str) -> None:
+    """Place an HTML fragment on the Windows clipboard using the CF_HTML format.
+
+    Outlook (both Classic and New) reads CF_HTML on paste, so the fragment
+    can include inline styles such as ``font-family: Courier New``.
+    """
+    CF_HTML = _u32.RegisterClipboardFormatW("HTML Format")
+
+    header_tmpl = (
+        "Version:0.9\r\n"
+        "StartHTML:{sh:08d}\r\n"
+        "EndHTML:{eh:08d}\r\n"
+        "StartFragment:{sf:08d}\r\n"
+        "EndFragment:{ef:08d}\r\n"
+    )
+    pre  = "<html><body>\r\n<!--StartFragment-->"
+    post = "<!--EndFragment-->\r\n</body></html>"
+
+    # Compute byte offsets using a zero-filled placeholder header first
+    # (all offsets are exactly 8 digits, so the header length is constant).
+    placeholder = header_tmpl.format(sh=0, eh=0, sf=0, ef=0)
+    sh = len(placeholder.encode("utf-8"))
+    sf = sh + len(pre.encode("utf-8"))
+    ef = sf + len(html_fragment.encode("utf-8"))
+    eh = ef + len(post.encode("utf-8"))
+
+    header = header_tmpl.format(sh=sh, eh=eh, sf=sf, ef=ef)
+    data   = (header + pre + html_fragment + post).encode("utf-8")
+
+    GMEM_MOVEABLE = 0x0002
+    h = _k32.GlobalAlloc(GMEM_MOVEABLE, len(data) + 1)
+    if not h:
+        raise RuntimeError("GlobalAlloc failed")
+    ptr = _k32.GlobalLock(h)
+    if not ptr:
+        raise RuntimeError("GlobalLock failed")
+    ctypes.memmove(ptr, data, len(data))
+    _k32.GlobalUnlock(h)
+    if not _u32.OpenClipboard(0):
+        raise RuntimeError("OpenClipboard failed")
+    _u32.EmptyClipboard()
+    _u32.SetClipboardData(CF_HTML, h)
+    _u32.CloseClipboard()
 
 
 def _current_user() -> str:
@@ -223,7 +288,7 @@ class SendOutputDialog(ctk.CTkToplevel):
                     has_sendable = True
                 var = ctk.BooleanVar(value=(not is_wip and run.status.value == "converged"))
                 if not is_wip:
-                    var.trace_add("write", lambda *_: self._update_save_btn())
+                    var.trace_add("write", lambda *_: self._on_selection_change())
                     self._checks[(i.id, run.id)] = var
 
                 row_f = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -271,7 +336,7 @@ class SendOutputDialog(ctk.CTkToplevel):
         frame = ctk.CTkFrame(parent, fg_color=["#EBEBEB", "#2A2A2A"], corner_radius=8)
         frame.grid(row=0, column=1, sticky="nsew", pady=0)
         frame.columnconfigure(0, weight=1)
-        frame.rowconfigure(5, weight=1)  # body textbox expands
+        frame.rowconfigure(3, weight=1)  # body textbox expands
 
         # Subject
         ctk.CTkLabel(
@@ -279,28 +344,18 @@ class SendOutputDialog(ctk.CTkToplevel):
             font=ctk.CTkFont(size=12, weight="bold"), anchor="w",
         ).grid(row=0, column=0, padx=14, pady=(12, 2), sticky="w")
         self._subject_var = ctk.StringVar(value=self._build_default_subject(v, e))
-        self._subject_var.trace_add("write", lambda *_: self._update_save_btn())
+        self._subject_var.trace_add("write", lambda *_: self._on_selection_change())
         ctk.CTkEntry(
             frame, textvariable=self._subject_var,
             font=ctk.CTkFont(size=12), height=32,
         ).grid(row=1, column=0, padx=14, pady=(0, 8), sticky="ew")
 
-        # To
-        ctk.CTkLabel(
-            frame, text="To  (comma-separated)",
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w",
-        ).grid(row=2, column=0, padx=14, pady=(0, 2), sticky="w")
+        # To — internal only, populated from .eml import (not shown in UI)
         self._to_var = ctk.StringVar()
-        self._to_var.trace_add("write", lambda *_: self._update_save_btn())
-        ctk.CTkEntry(
-            frame, textvariable=self._to_var,
-            placeholder_text="colleague@company.com, ...",
-            font=ctk.CTkFont(size=12), height=32,
-        ).grid(row=3, column=0, padx=14, pady=(0, 8), sticky="ew")
 
-        # Body header row (label + Regenerate button)
+        # Body header row (label + Copy + Regenerate buttons)
         body_hdr = ctk.CTkFrame(frame, fg_color="transparent")
-        body_hdr.grid(row=4, column=0, sticky="ew", padx=14, pady=(0, 2))
+        body_hdr.grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 2))
         ctk.CTkLabel(
             body_hdr, text="Body",
             font=ctk.CTkFont(size=12, weight="bold"), anchor="w",
@@ -312,14 +367,24 @@ class SendOutputDialog(ctk.CTkToplevel):
             text_color=["#1A1A1A", "#DCE4EE"],
             command=self._refresh_body,
         ).pack(side="right")
+        self._copy_btn = ctk.CTkButton(
+            body_hdr, text=" Copy",
+            image=_IMG_COPY, compound="left",
+            width=72, height=22, font=ctk.CTkFont(size=10),
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=self._on_copy_body,
+        )
+        self._copy_btn.pack(side="right", padx=(0, 6))
 
-        # Body textbox
+        # Body textbox — read-only; written programmatically via _refresh_body
         self._body_box = ctk.CTkTextbox(
             frame,
             font=ctk.CTkFont(size=11, family="Courier New"),
             wrap="none",
+            state="disabled",
         )
-        self._body_box.grid(row=5, column=0, padx=14, pady=(0, 12), sticky="nsew")
+        self._body_box.grid(row=3, column=0, padx=14, pady=(0, 12), sticky="nsew")
 
     # ------------------------------------------------------------------
     # Body generation
@@ -329,63 +394,85 @@ class SendOutputDialog(ctk.CTkToplevel):
         return f"FEA Trace \u2014 {e.project} / {e.name} {v.id}"
 
     def _build_body(self) -> str:
-        v       = self._project._get_version(self._version_id)
-        e       = self._project.entity
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-        user    = _current_user()
+        v   = self._project._get_version(self._version_id)
+        e   = self._project.entity
+        SEP = "=" * 65
 
-        lines = [
-            "FEA Trace Output Report",
-            "=======================",
-            f"Project  : {e.project}",
-            f"Entity   : {e.name} [{e.id}]",
-            f"Version  : {v.id} \u2014 {v.description}",
-            f"Generated: {now_str} by {user}",
-            "",
-            "--- Selected Results ---",
-            "",
-        ]
+        def _field(label: str, value: str) -> list[str]:
+            """Label padded to 12 chars + ': ' prefix; continuation lines indent to match."""
+            prefix = f"{label:<12}: "
+            indent = " " * len(prefix)
+            parts  = (value or "").split("\n")
+            out    = [prefix + parts[0]]
+            for part in parts[1:]:
+                out.append(indent + part)
+            return out
+
+        def _indented_field(label: str, value: str, base_indent: str) -> list[str]:
+            """Like _field but with a leading indent (used inside iteration blocks)."""
+            prefix = f"{base_indent}{label}: "
+            indent = " " * len(prefix)
+            parts  = (value or "").split("\n")
+            out    = [prefix + parts[0]]
+            for part in parts[1:]:
+                out.append(indent + part)
+            return out
+
+        lines = [SEP, "FEA Trace Output Report", SEP]
+        lines += _field("Project",     e.project)
+        lines += _field("Entity",      f"{e.name} [{e.id}]")
+        lines += _field("Version",     v.id)
+        lines += _field("Description", v.description or "")
+
+        # Step files — scan the 01_Source/{version_id}/ folder on disk so that
+        # files added via "Browse Files…" (which have no SourceComponentRecord)
+        # are included alongside assembly-component files.
+        src_folder = self._project.get_version_source_folder(self._version_id)
+        if src_folder.is_dir():
+            step_files = sorted(
+                f.name for f in src_folder.iterdir()
+                if f.is_file() and f.suffix.lower() in {".step", ".stp"}
+            )
+        else:
+            step_files = []
+        if step_files:
+            lines += ["", "--- Step files ---"]
+            for f in step_files:
+                lines.append(f"- {f}")
+
+        # Reported results
+        lines += ["", "--- Reported Results ---"]
 
         iter_map: dict[str, object] = {i.id: i for i in v.iterations}
-        run_map:  dict[tuple, object] = {
-            (i.id, run.id): run for i in v.iterations for run in i.runs
-        }
-        selected: dict[str, list] = {}
+        selected: dict[str, list[int]] = {}
         for (iter_id, run_id), var in self._checks.items():
             if var.get():
-                selected.setdefault(iter_id, []).append(
-                    (iter_map[iter_id], run_map[(iter_id, run_id)])
-                )
+                selected.setdefault(iter_id, []).append(run_id)
 
         if not selected:
             lines.append("(no runs selected)")
         else:
             for iter_id in sorted(selected):
-                pairs = selected[iter_id]
-                if not pairs:
-                    continue
-                i = pairs[0][0]
-                lines.append(
-                    f"[{i.id} \u2014 {i.description}]  ({i.solver_type.value})"
+                i        = iter_map[iter_id]
+                run_ids  = selected[iter_id]
+                last_run = max(i.runs, key=lambda r: r.id) if i.runs else None
+                date_part = (
+                    f"  (last run: {last_run.date.split(' ')[0]})" if last_run else ""
                 )
-                for _, run in sorted(pairs, key=lambda x: x[1].id):
-                    date_only = run.date.split(" ")[0]
-                    lines.append(
-                        f"  \u2022 Run {run.id:02d}  {run.status.value.upper():<12}({date_only})"
-                    )
-                lines.append("")
+                lines.append(f"- {iter_id}  [{i.status.value.upper()}]{date_part}")
+                lines += _indented_field("Description", i.description or "", "  ")
+                for run_id in sorted(run_ids):
+                    lines.append(f"    - Run {run_id:02d}")
 
-        from app.gui.theme import AUDIT_NOTE_PREFIXES
-        user_notes = [n for n in v.notes if not n.startswith(AUDIT_NOTE_PREFIXES)]
-        if user_notes:
-            lines += ["--- Version Notes ---"] + user_notes + [""]
-
+        lines += ["", SEP]
         return "\n".join(lines)
 
     def _refresh_body(self) -> None:
         body = self._build_body()
+        self._body_box.configure(state="normal")
         self._body_box.delete("1.0", "end")
         self._body_box.insert("1.0", body)
+        self._body_box.configure(state="disabled")
 
     # ------------------------------------------------------------------
     # Helpers
@@ -415,41 +502,82 @@ class SendOutputDialog(ctk.CTkToplevel):
         for var in self._checks.values():
             var.set(False)
 
+    def _on_selection_change(self) -> None:
+        """Called whenever run checkboxes or subject change; updates save button and body."""
+        self._update_save_btn()
+        self._refresh_body()
+
     def _update_save_btn(self) -> None:
         has_runs = any(v.get() for v in self._checks.values())
-        has_to   = bool(self._to_var.get().strip())
         has_subj = bool(self._subject_var.get().strip())
         has_eml  = self._eml_source_path is not None
         self._save_btn.configure(
-            state="normal" if (has_runs and has_to and has_subj and has_eml) else "disabled"
+            state="normal" if (has_runs and has_subj and has_eml) else "disabled"
         )
 
     # ------------------------------------------------------------------
     # Button events
     # ------------------------------------------------------------------
 
+    def _on_copy_body(self) -> None:
+        """Copy the body to the clipboard as CF_HTML (Courier New) + plain text fallback."""
+        self._error_label.configure(text="")
+        body = self._body_box.get("1.0", "end").rstrip()
+        html_fragment = (
+            '<pre style="font-family: Courier New, monospace; font-size: 10pt;">'
+            + _html_lib.escape(body)
+            + "</pre>"
+        )
+        try:
+            _set_html_clipboard(html_fragment)
+            self._copy_btn.configure(text=" Copied!")
+            self.after(2000, lambda: self._copy_btn.configure(text=" Copy"))
+        except Exception as exc:
+            self._error_label.configure(text=f"Clipboard error: {exc}")
+
     def _on_open_outlook(self) -> None:
         """Open a pre-filled draft in the system default mail client.
 
-        Uses a mailto: URI so the correct mail app opens regardless of whether
-        the user has New Outlook, Classic Outlook, or any other client
+        Uses a mailto: URI (To + Subject only) so the correct mail app opens
+        regardless of whether the user has New Outlook, Classic Outlook, or any
+        other client.  The body is placed on the clipboard as CF_HTML so that
+        a simple Ctrl+V in the compose window pastes it in Courier New.
         """
         self._error_label.configure(text="")
+        self._import_label.configure(text="")
         subject = self._subject_var.get().strip()
-        to_str  = self._to_var.get().strip()
+        self._body_box.configure(state="normal")
         body    = self._body_box.get("1.0", "end").rstrip()
+        self._body_box.configure(state="disabled")
 
-        # Encode subject and body; webbrowser.open → ShellExecute on Windows
-        # which has no practical length limit for mailto: URIs.
-        params  = urllib.parse.urlencode(
-            {"subject": subject, "body": body},
+        # Place body on clipboard as HTML so Outlook renders it in Courier New.
+        html_fragment = (
+            '<pre style="font-family: Courier New, monospace; font-size: 10pt;">'
+            + _html_lib.escape(body)
+            + "</pre>"
+        )
+        try:
+            _set_html_clipboard(html_fragment)
+            clipboard_ok = True
+        except Exception as exc:
+            clipboard_ok = False
+            self._error_label.configure(text=f"Clipboard error: {exc}")
+
+        # Open compose window with To + Subject pre-filled (body intentionally
+        # omitted so the user pastes the formatted version from the clipboard).
+        params = urllib.parse.urlencode(
+            {"subject": subject},
             quote_via=urllib.parse.quote,
         )
-        mailto  = f"mailto:{urllib.parse.quote(to_str)}?{params}"
+        mailto = f"mailto:?{params}"
         try:
             webbrowser.open(mailto)
             self._outlook_opened = True
             self._outlook_btn.configure(text="Reopen in Outlook")
+            if clipboard_ok:
+                self._import_label.configure(
+                    text="\u2713 Body copied to clipboard \u2014 paste with Ctrl+V in Outlook"
+                )
         except Exception as exc:
             self._error_label.configure(text=f"Could not open mail client: {exc}")
 
@@ -499,13 +627,15 @@ class SendOutputDialog(ctk.CTkToplevel):
         if not run_refs:
             self._error_label.configure(text="Select at least one run.")
             return
-        to_str  = self._to_var.get().strip()
+        to_str  = self._to_var.get().strip()   # may be empty if .eml had no To header
         subject = self._subject_var.get().strip()
-        if not to_str or not subject:
-            self._error_label.configure(text="To and Subject fields are required.")
+        if not subject:
+            self._error_label.configure(text="Subject field is required.")
             return
 
-        body_text    = self._body_box.get("1.0", "end").rstrip()
+        self._body_box.configure(state="normal")
+        body_text = self._body_box.get("1.0", "end").rstrip()
+        self._body_box.configure(state="disabled")
         body_summary = body_text[:500] if body_text else ""
 
         # Copy .eml to entity communications folder
