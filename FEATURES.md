@@ -413,9 +413,8 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   runs to share (WIP runs disabled; iterations with only WIP runs shown with a "No sendable runs"
   notice) and compose the email (Subject pre-filled as
   `"FEA Trace — {project} / {entity_name} {version_id}"`, free-form To field, auto-generated body
-  preview that is editable). **"Open Draft in Outlook"** builds an Outlook `MailItem` via
-  `win32com.client` and calls `Display(False)` (gracefully disabled with a tooltip when Outlook is
-  not installed). **"Import Sent .eml…"** parses the file with the built-in `email` module and
+  preview that is editable). **"Open Draft in Outlook"** opens the system mail client via a
+  `mailto:` URI (`webbrowser.open`). **"Import Sent .eml…"** parses the file with the built-in `email` module and
   auto-fills To/Subject/Date fields. **"Save Record"** (enabled only when ≥ 1 run is selected and
   Subject + To are non-empty) copies the `.eml` file (collision-safe name) to
   `{entity_path}/05_Communications/`, builds a `CommunicationRecord`, appends a
@@ -431,8 +430,7 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `eml_filenames: list[str]`); both are minor auto-applied migrations.
   `schema.py`, `app/core/migration.py`, `app/core/models.py`, `app/config.py`,
   `app/gui/theme.py`, `app/gui/frames/version_frame.py`, `app/gui/frames/entity_frame.py`,
-  `app/gui/frames/iteration_frame.py`, `app/gui/dialogs/send_output_dialog.py`,
-  `requirements.txt` _(2026-03-03)_
+  `app/gui/frames/iteration_frame.py`, `app/gui/dialogs/send_output_dialog.py` _(2026-03-03)_
 
 ---
 
