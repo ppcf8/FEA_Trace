@@ -32,6 +32,10 @@ Each entity is persisted as a `version_log.yaml` file in its own folder. Multipl
 - **Sidebar expand / collapse** — `⊟` / `⊞` header buttons collapse or expand the full tree; right-click for a themed context menu (per-project, per-entity, or global)
 - **Project-code and entity-name presets** — save frequently-used project codes, entity names, and entity IDs as presets; New/Edit Entity dialogs show dropdown lists that filter by project code and auto-fill the entity ID; a Yes/No prompt on confirm offers to save new values; **Settings → Manage Presets…** provides a two-panel CRUD editor with add, edit (combined name + ID dialog), delete, and JSON import; persisted to `~/Documents/FEA_Trace/settings.json`
 - **Send output with communication log** — a **"Send Output"** button on the Version panel opens a compose dialog: select which runs to share (WIP runs excluded), edit subject / recipients / body, open a draft in the system mail client via `mailto:`, or import a sent `.eml` file; saving the record stores a `CommunicationRecord` in the YAML, copies the `.eml` to `05_Communications/`, appends a `[Sent Output]` audit note to the version and each referenced iteration, and updates the EntityFrame's Communications panel (sorted most-recent-first); additional `.eml` files can be attached later via the Communication Detail popup
+- **Version source files and assembly tracking** — attach `.step` / `.stp` CAD files directly to a
+  version (copied into `01_Source/{version_id}/`) or link versions from other open entities as
+  assembly components; relationships persisted in the YAML and displayed in a read-only Assembly
+  Components table on the Version panel; "Open Source Folder" button opens the folder in Explorer
 - **Appearance** — System / Light / Dark theme switching via Settings menu
 
 ## Requirements

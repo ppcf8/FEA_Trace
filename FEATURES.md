@@ -432,6 +432,30 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/gui/theme.py`, `app/gui/frames/version_frame.py`, `app/gui/frames/entity_frame.py`,
   `app/gui/frames/iteration_frame.py`, `app/gui/dialogs/send_output_dialog.py` _(2026-03-03)_
 
+- **Version source files and assembly components** — every version can now have `.step` /
+  `.stp` CAD source files tracked against it. The **New Version** and **Edit Version** dialogs
+  gain a "Source Files" section with two ways to add files: **Browse Files…** opens a standard
+  file picker (files are copied into `{entity_path}/01_Source/{version_id}/`); **Add Assembly
+  Component…** opens `SelectSourceVersionDialog` — a `Sidebar.Treeview`-styled tree picker that
+  lists all other open entities and their versions (collapsed by default; entity nodes expandable
+  via click or right-click context menu with Expand / Collapse / Expand All / Collapse All). Each
+  version node shows its ID, a ★ for PRODUCTION versions, and the `.step` file count; deprecated
+  or empty versions are greyed and unselectable. Multi-select is supported via ☐ / ☑ checkbox
+  prefix in the node text (one version per entity; selecting a second version for the same entity
+  unchecks the first). An **Add Entity…** button allows browsing to entities not in the current
+  session. On confirm, all selected `.step` files are copied and the assembly relationship is
+  persisted as a `SourceComponentRecord` (fields: `entity_path`, `entity_name`, `project_code`,
+  `version_id`, `copied_files: list[str]`) in the YAML. **VersionFrame** gains an **"Open Source
+  Folder"** button in the action bar (creates the folder if absent) and a read-only **"Assembly
+  Components"** `ttk.Treeview` table (Project / Entity / Version / Files columns; hidden when
+  empty). Schema bumped `2.7.0 → 2.8.0`; auto-migration adds `source_components: []` to all
+  existing versions.
+  `schema.py`, `app/core/migration.py`, `app/core/models.py`, `app/config.py`,
+  `app/gui/main_window.py`, `app/gui/dialogs/new_version_dialog.py`,
+  `app/gui/dialogs/edit_version_dialog.py`,
+  `app/gui/dialogs/select_source_version_dialog.py`,
+  `app/gui/frames/entity_frame.py`, `app/gui/frames/version_frame.py` _(2026-03-03)_
+
 ---
 
 ## Infrastructure
