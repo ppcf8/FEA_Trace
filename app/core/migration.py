@@ -265,3 +265,22 @@ MIGRATIONS["2.6.0"] = (
     "Rename eml_filename → eml_filenames (list) in CommunicationRecord.",
     False,   # minor — auto-applied
 )
+
+
+# ---------------------------------------------------------------------------
+# Migration: 2.7.0 → 2.8.0
+# Add source_components list to VersionRecord.
+# ---------------------------------------------------------------------------
+
+def _migrate_2_7_0(raw: dict, migrated_by: str) -> dict:
+    for v in raw.get("versions", []):
+        v.setdefault("source_components", [])
+    raw["schema_version"] = "2.8.0"
+    return raw
+
+
+MIGRATIONS["2.7.0"] = (
+    _migrate_2_7_0,
+    "Add source_components list to VersionRecord.",
+    False,   # minor — auto-applied
+)

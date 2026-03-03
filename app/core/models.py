@@ -10,13 +10,13 @@ from schema import (
     next_version_id, next_iteration_id, next_run_id,
     build_filename_base, build_run_filename,
     validate_status_transition, validate_mandatory_fields,
-    ArtifactRecord, CommunicationRecord, RunRecord, IterationRecord,
-    VersionRecord, EntityRecord, VersionLog,
+    ArtifactRecord, CommunicationRecord, SourceComponentRecord,
+    RunRecord, IterationRecord, VersionRecord, EntityRecord, VersionLog,
 )
 from app.config import (
     LOCK_TIMEOUT_SECONDS, LOCK_FILENAME, LOG_FILENAME,
     REQUIRED_PRODUCTION_ARTIFACTS, RUNS_FOLDER, RESULTS_FOLDER,
-    TIMESTAMP_FORMAT,
+    TIMESTAMP_FORMAT, SOURCE_FOLDER,
 )
 
 class FEATraceError(Exception): pass
@@ -93,13 +93,21 @@ def _deserialise_comm(raw):
             [raw["eml_filename"]] if raw.get("eml_filename") else []),
         run_refs=raw.get("run_refs", []))
 
+def _deserialise_source_component(raw):
+    return SourceComponentRecord(
+        entity_path=raw["entity_path"], entity_name=raw["entity_name"],
+        project_code=raw["project_code"], version_id=raw["version_id"],
+        copied_files=raw.get("copied_files", []))
+
 def _deserialise_version(raw):
     return VersionRecord(
         id=raw["id"], status=VersionStatus(raw["status"]),
         description=raw["description"], created_by=raw["created_by"], created_on=raw["created_on"],
         iterations=[_deserialise_iteration(i) for i in raw.get("iterations",[])],
         notes=raw.get("notes",[]),
-        communications=[_deserialise_comm(c) for c in raw.get("communications", [])])
+        communications=[_deserialise_comm(c) for c in raw.get("communications", [])],
+        source_components=[_deserialise_source_component(s)
+                           for s in raw.get("source_components", [])])
 
 def _load_log(log_path):
     try: raw = yaml.safe_load(log_path.read_text(encoding="utf-8"))
@@ -130,10 +138,14 @@ def _serialise_log(log):
     def comm_d(c): return {"sent_at":c.sent_at,"sent_by":c.sent_by,
         "to":c.to,"subject":c.subject,"body_summary":c.body_summary,
         "eml_filenames":c.eml_filenames,"run_refs":c.run_refs}
+    def sc_d(s): return {"entity_path":s.entity_path,"entity_name":s.entity_name,
+        "project_code":s.project_code,"version_id":s.version_id,
+        "copied_files":s.copied_files}
     def ver_d(v): return {"id":v.id,"status":v.status.value,"description":v.description,
         "created_by":v.created_by,"created_on":v.created_on,
         "notes":v.notes,
         "communications":[comm_d(c) for c in v.communications],
+        "source_components":[sc_d(s) for s in v.source_components],
         "iterations":[iter_d(i) for i in v.iterations]}
     e = log.entity
     return {"schema_version":log.schema_version,
@@ -265,13 +277,37 @@ class FEAProject:
         warnings = _validate_folder_anatomy(entity_path)
         return cls(entity_path, log), warnings
 
-    def add_version(self, description, created_by, notes=None):
+    def add_version(self, description, created_by, notes=None, source_components=None):
         existing = [v.id for v in self._log.entity.versions]
         v = VersionRecord(id=next_version_id(existing), status=VersionStatus.WIP,
                           description=description, created_by=created_by, created_on=_now(),
-                          notes=notes or [])
+                          notes=notes or [], source_components=source_components or [])
         self._log.entity.versions.append(v)
         self._write(); return v
+
+    def copy_version_source_files(self, version_id: str, step_files: list) -> Path:
+        """Copy STEP files into {entity_path}/01_Source/{version_id}/.
+        Returns destination folder. Collision-safe: appends _2, _3, … when needed."""
+        import shutil
+        dest_folder = self._path / SOURCE_FOLDER / version_id
+        dest_folder.mkdir(parents=True, exist_ok=True)
+        for src in step_files:
+            src  = Path(src)
+            dest = dest_folder / src.name
+            if not dest.exists():
+                shutil.copy2(src, dest)
+            else:
+                stem, suffix = src.stem, src.suffix
+                n = 2
+                while dest.exists():
+                    dest = dest_folder / f"{stem}_{n}{suffix}"
+                    n += 1
+                shutil.copy2(src, dest)
+        return dest_folder
+
+    def get_version_source_folder(self, version_id: str) -> Path:
+        """Returns {entity_path}/01_Source/{version_id}/ without creating it."""
+        return self._path / SOURCE_FOLDER / version_id
 
     def update_version_status(self, version_id, new_status, revert_reason=None):
         v = self._get_version(version_id)
@@ -382,11 +418,14 @@ class FEAProject:
         e.created_by = created_by
         self._write()
 
-    def update_version_metadata(self, version_id, description, notes, created_by):
+    def update_version_metadata(self, version_id, description, notes, created_by,
+                                source_components=None):
         v = self._get_version(version_id)
         v.description = description
         v.notes       = notes
         v.created_by  = created_by
+        if source_components is not None:
+            v.source_components = source_components
         self._write()
 
     def update_iteration_metadata(self, version_id, iter_id,

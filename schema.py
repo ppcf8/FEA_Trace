@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Optional
 import re
 
-SCHEMA_VERSION = "2.7.0"
+SCHEMA_VERSION = "2.8.0"
 
 class SolverType(str, Enum):
     IMPLICIT = "IMPLICIT"
@@ -114,6 +114,14 @@ class CommunicationRecord:
     run_refs:      list[str] = field(default_factory=list)  # ["V01I01 Run 01", …]
 
 @dataclass
+class SourceComponentRecord:
+    entity_path:  str
+    entity_name:  str
+    project_code: str
+    version_id:   str
+    copied_files: list[str] = field(default_factory=list)  # filenames in 01_Source/{version_id}/
+
+@dataclass
 class RunRecord:
     id:         int
     name:       str
@@ -147,9 +155,10 @@ class VersionRecord:
     description: str
     created_by:  str
     created_on:  str
-    iterations:     list[IterationRecord]    = field(default_factory=list)
-    notes:          list[str]               = field(default_factory=list)
-    communications: list[CommunicationRecord] = field(default_factory=list)
+    iterations:        list[IterationRecord]      = field(default_factory=list)
+    notes:             list[str]                  = field(default_factory=list)
+    communications:    list[CommunicationRecord]  = field(default_factory=list)
+    source_components: list[SourceComponentRecord] = field(default_factory=list)
     MANDATORY = {"id", "status", "description", "created_by", "created_on"}
 
 @dataclass

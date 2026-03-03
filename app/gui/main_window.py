@@ -222,6 +222,10 @@ class MainWindow(ctk.CTk):
                 v_id, i_id, run_id = ids
                 self.show_run(entity_path, v_id, i_id, int(run_id))
 
+    def get_open_projects(self) -> list:
+        """Return all FEAProject instances currently open in the session."""
+        return list(self._projects.values())
+
     def refresh_sidebar(self) -> None:
         """Refreshes the active entity's subtree in the sidebar, then
         restores the previous tree selection."""

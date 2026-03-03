@@ -3,6 +3,9 @@ frames/version_frame.py — Version Detail View
 """
 from __future__ import annotations
 
+import os
+import platform
+import subprocess
 import tkinter as tk
 import tkinter.ttk as ttk
 import tkinter.font as tkfont
@@ -84,6 +87,7 @@ class VersionFrame(ctk.CTkFrame):
         self._build_notes_panel()
         self._build_iter_table()
         self._build_action_bar()
+        self._build_source_panel()
 
     def _build_header(self) -> None:
         hdr = ctk.CTkFrame(self, fg_color="transparent")
@@ -316,6 +320,15 @@ class VersionFrame(ctk.CTkFrame):
         )
         self._new_iter_btn.pack(side="left")
 
+        ctk.CTkButton(
+            bar, text="Open Source Folder",
+            width=160, height=36,
+            font=ctk.CTkFont(size=13),
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=self._on_open_source_folder,
+        ).pack(side="left", padx=(8, 0))
+
         self._send_output_btn = ctk.CTkButton(
             bar, text="Send Output",
             width=130, height=36,
@@ -325,6 +338,34 @@ class VersionFrame(ctk.CTkFrame):
             command=self._on_send_output,
         )
         self._send_output_btn.pack(side="left", padx=(8, 0))
+
+    def _build_source_panel(self) -> None:
+        """Read-only 'Assembly Components' table, hidden when no components."""
+        self._source_panel = ctk.CTkFrame(self, fg_color="transparent")
+        self._source_panel.grid(row=5, column=0, sticky="ew", padx=24, pady=(0, 12))
+        self._source_panel.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            self._source_panel, text="Assembly Components",
+            font=ctk.CTkFont(size=13, weight="bold"), anchor="w",
+        ).grid(row=0, column=0, sticky="w", pady=(0, 4))
+
+        apply_table_style("AssemblyComponents.Treeview")
+        cols = ("project", "entity", "version", "files")
+        self._source_tree = ttk.Treeview(
+            self._source_panel, columns=cols, show="headings",
+            selectmode="none", height=4,
+            style="AssemblyComponents.Treeview",
+        )
+        for col, heading, w in zip(cols,
+                                   ("Project", "Entity", "Version", "Files"),
+                                   (120, 200, 80, 100)):
+            self._source_tree.heading(col, text=heading, anchor="w")
+            self._source_tree.column(col, width=w, stretch=(col == "entity"), anchor="w")
+        self._source_tree.grid(row=1, column=0, sticky="ew")
+
+        # Start hidden
+        self._source_panel.grid_remove()
 
     # ------------------------------------------------------------------
     # Load
@@ -381,6 +422,34 @@ class VersionFrame(ctk.CTkFrame):
         for col in self._col_order:
             self._update_heading(col)
         self._populate_table(v)
+        self._populate_source_panel(v)
+
+    def _populate_source_panel(self, v) -> None:
+        apply_table_style("AssemblyComponents.Treeview")
+        for item in self._source_tree.get_children():
+            self._source_tree.delete(item)
+        components = getattr(v, "source_components", [])
+        if not components:
+            self._source_panel.grid_remove()
+            return
+        src_folder = self._project.get_version_source_folder(v.id)
+        for sc in components:
+            if sc.copied_files:
+                # Recorded at creation time — most reliable per-component count
+                n_files = len(sc.copied_files)
+            elif src_folder.is_dir():
+                # Fallback: count all step files in the version's source folder
+                n_files = sum(
+                    1 for f in src_folder.iterdir()
+                    if f.is_file() and f.suffix.lower() in {".step", ".stp"}
+                )
+            else:
+                n_files = 0
+            files_str = f"{n_files} file{'s' if n_files != 1 else ''}"
+            self._source_tree.insert("", "end", values=(
+                sc.project_code, sc.entity_name, sc.version_id, files_str,
+            ))
+        self._source_panel.grid()
 
     def _populate_transition_buttons(self, current: VersionStatus) -> None:
         for w in self._transition_frame.winfo_children():
@@ -632,6 +701,22 @@ class VersionFrame(ctk.CTkFrame):
     # Events
     # ------------------------------------------------------------------
 
+    def _on_open_source_folder(self) -> None:
+        if not self._project or not self._version_id:
+            return
+        folder = self._project.get_version_source_folder(self._version_id)
+        if not folder.exists():
+            folder.mkdir(parents=True, exist_ok=True)
+        try:
+            if platform.system() == "Windows":
+                os.startfile(str(folder))
+            elif platform.system() == "Darwin":
+                subprocess.Popen(["open", str(folder)])
+            else:
+                subprocess.Popen(["xdg-open", str(folder)])
+        except Exception as exc:
+            self._window.set_status(f"Could not open source folder: {exc}")
+
     def _on_send_output(self) -> None:
         if not self._project or not self._version_id:
             return
@@ -677,13 +762,20 @@ class VersionFrame(ctk.CTkFrame):
             return
         from app.gui.dialogs.edit_version_dialog import EditVersionDialog
         v = self._project._get_version(self._version_id)
-        dlg = EditVersionDialog(self._window, v)
+        session_projects = [p for p in self._window.get_open_projects()
+                            if str(p.path) != str(self._project.path)]
+        dlg = EditVersionDialog(self._window, v,
+                                project=self._project,
+                                session_projects=session_projects)
         self._window.wait_window(dlg)
         if dlg.result is None:
             return
-        description, notes, created_by = dlg.result
+        description, notes, created_by, new_step_files, source_components = dlg.result
         try:
-            self._project.update_version_metadata(self._version_id, description, notes, created_by)
+            self._project.update_version_metadata(
+                self._version_id, description, notes, created_by, source_components)
+            if new_step_files:
+                self._project.copy_version_source_files(self._version_id, new_step_files)
         except Exception as exc:
             self._show_error("Edit Version Failed", str(exc))
             return

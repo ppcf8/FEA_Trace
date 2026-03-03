@@ -18,6 +18,7 @@ REQUIRED_PRODUCTION_ARTIFACTS: dict[SolverType, list[str]] = {
     SolverType.MBD:      [".xml", ".h3d"],
 }
 
+SOURCE_FOLDER:          str = "01_Source"
 MODELS_FOLDER:          str = "02_Models"
 RUNS_FOLDER:            str = "03_Runs"
 RESULTS_FOLDER:         str = "04_Results"
