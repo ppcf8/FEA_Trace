@@ -408,6 +408,32 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/gui/dialogs/new_entity_dialog.py`, `app/gui/dialogs/edit_entity_dialog.py`,
   `app/gui/main_window.py` _(2026-03-02)_
 
+- **Send output — email with communication log** — a **"Send Output"** button in the VersionFrame
+  action bar opens `SendOutputDialog`: a two-section `CTkToplevel` where users select which
+  runs to share (WIP runs disabled; iterations with only WIP runs shown with a "No sendable runs"
+  notice) and compose the email (Subject pre-filled as
+  `"FEA Trace — {project} / {entity_name} {version_id}"`, free-form To field, auto-generated body
+  preview that is editable). **"Open Draft in Outlook"** builds an Outlook `MailItem` via
+  `win32com.client` and calls `Display(False)` (gracefully disabled with a tooltip when Outlook is
+  not installed). **"Import Sent .eml…"** parses the file with the built-in `email` module and
+  auto-fills To/Subject/Date fields. **"Save Record"** (enabled only when ≥ 1 run is selected and
+  Subject + To are non-empty) copies the `.eml` file (collision-safe name) to
+  `{entity_path}/05_Communications/`, builds a `CommunicationRecord`, appends a
+  `[Sent Output] on {date} by {user} — To: {to} — Subject: {subject}` audit note to `version.notes`
+  and to each referenced `iteration.notes`, and calls `FEAProject.add_communication()`. The audit
+  note appears automatically in the VersionFrame and IterationFrame audit tables. Additional `.eml`
+  files can be attached to an existing record via the **"+ Add .eml"** button in the Communication
+  Detail popup (double-click a row in any comms table). EntityFrame shows a **Communications**
+  panel (row 4, hidden when empty) with a `ttk.Treeview` listing all communications across all
+  versions, sorted most-recent-first; columns: Date / By / Version / To / Subject / .eml (shows
+  count). Schema bumped `2.5.0 → 2.6.0` (adds `CommunicationRecord` and
+  `VersionRecord.communications`); then `2.6.0 → 2.7.0` (renames `eml_filename: str` →
+  `eml_filenames: list[str]`); both are minor auto-applied migrations.
+  `schema.py`, `app/core/migration.py`, `app/core/models.py`, `app/config.py`,
+  `app/gui/theme.py`, `app/gui/frames/version_frame.py`, `app/gui/frames/entity_frame.py`,
+  `app/gui/frames/iteration_frame.py`, `app/gui/dialogs/send_output_dialog.py`,
+  `requirements.txt` _(2026-03-03)_
+
 ---
 
 ## Infrastructure
@@ -487,15 +513,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Not Implemented
 
 <!-- Sorted easiest → hardest. Format: **Feature** — description. -->
-
-- **Send output — email with stored communication log** — a "Send Output" button (location TBD —
-  version or run panel) pre-fills an email (subject derived from version/entity metadata) and opens
-  the user's mail client. After sending, the user confirms dispatch and a communication record is
-  stored in FEA Trace. _Design decisions to investigate: where the button lives (VersionFrame vs.
-  RunFrame); email trigger mechanism (`mailto:` link vs. SMTP — mailto gives no send confirmation);
-  schema for communication records (new `CommunicationRecord` dataclass, attached to which level?);
-  where communication history is displayed in the UI._
-  `schema.py`, `app/core/migration.py`, `app/core/models.py`, new dialog + panel
 
 - **Multiple users — conflict management and UI refresh** — detect when another user has modified
   the same `version_log.yaml` while the current user has it open, surface a notification (user name

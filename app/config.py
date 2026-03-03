@@ -18,9 +18,10 @@ REQUIRED_PRODUCTION_ARTIFACTS: dict[SolverType, list[str]] = {
     SolverType.MBD:      [".xml", ".h3d"],
 }
 
-MODELS_FOLDER:  str = "02_Models"
-RUNS_FOLDER:    str = "03_Runs"
-RESULTS_FOLDER: str = "04_Results"
+MODELS_FOLDER:          str = "02_Models"
+RUNS_FOLDER:            str = "03_Runs"
+RESULTS_FOLDER:         str = "04_Results"
+COMMUNICATIONS_FOLDER:  str = "05_Communications"
 TIMESTAMP_FORMAT: str = "%Y-%m-%d %H:%M:%S"
 SIDEBAR_WIDTH:  int = 240
 ENTITY_ID_MAX_LEN: int = 12

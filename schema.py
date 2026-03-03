@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Optional
 import re
 
-SCHEMA_VERSION = "2.5.0"
+SCHEMA_VERSION = "2.7.0"
 
 class SolverType(str, Enum):
     IMPLICIT = "IMPLICIT"
@@ -104,6 +104,16 @@ class ArtifactRecord:
     is_production: bool = False
 
 @dataclass
+class CommunicationRecord:
+    sent_at:      str                                      # FEA Trace save timestamp
+    sent_by:      str                                      # username
+    to:           str                                      # recipients string
+    subject:      str                                      # email subject
+    body_summary:  str       = ""                           # first ~500 chars of body
+    eml_filenames: list[str] = field(default_factory=list)  # files in 05_Communications/
+    run_refs:      list[str] = field(default_factory=list)  # ["V01I01 Run 01", …]
+
+@dataclass
 class RunRecord:
     id:         int
     name:       str
@@ -137,8 +147,9 @@ class VersionRecord:
     description: str
     created_by:  str
     created_on:  str
-    iterations:  list[IterationRecord] = field(default_factory=list)
-    notes:       list[str] = field(default_factory=list)
+    iterations:     list[IterationRecord]    = field(default_factory=list)
+    notes:          list[str]               = field(default_factory=list)
+    communications: list[CommunicationRecord] = field(default_factory=list)
     MANDATORY = {"id", "status", "description", "created_by", "created_on"}
 
 @dataclass

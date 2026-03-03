@@ -17,7 +17,8 @@ from PIL import Image
 
 from schema import VersionStatus, REQUIRED_FOLDERS
 from app.core.models import FEAProject
-from app.gui.theme import apply_table_style, make_scrollbar, STATUS_COLORS, tokens
+from app.gui.theme import (apply_table_style, make_scrollbar, STATUS_COLORS, tokens,
+                           autofit_tree_columns, show_comm_detail_popup)
 
 _ICONS_DIR = Path(__file__).parent.parent.parent / "assets" / "icons"
 _IMG_EDIT  = ctk.CTkImage(Image.open(_ICONS_DIR / "edit.png"), size=(16, 16))
@@ -74,11 +75,13 @@ class EntityFrame(ctk.CTkFrame):
     def _build(self) -> None:
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=1)
+        # row 4 (comms) weight is set dynamically in _populate_comms
 
         self._build_header()
         self._build_metadata_panel()
         self._build_version_table()
         self._build_action_bar()
+        self._build_comms_panel()
 
     def _build_header(self) -> None:
         hdr = ctk.CTkFrame(self, fg_color="transparent")
@@ -183,7 +186,7 @@ class EntityFrame(ctk.CTkFrame):
                 "created_by", "created_on")
         self._table = ttk.Treeview(
             section, columns=cols, show="headings",
-            selectmode="browse", height=8,
+            selectmode="browse", height=5,
             style="Entity.Treeview",
         )
 
@@ -232,6 +235,81 @@ class EntityFrame(ctk.CTkFrame):
             command=self._on_new_version,
         ).pack(side="left")
 
+    def _build_comms_panel(self) -> None:
+        section = ctk.CTkFrame(self, fg_color="transparent")
+        section.grid(row=4, column=0, sticky="nsew", padx=24, pady=(0, 8))
+        section.columnconfigure(0, weight=1)
+        section.rowconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            section, text="Communications",
+            font=ctk.CTkFont(size=15, weight="bold"), anchor="w",
+        ).grid(row=0, column=0, sticky="w", pady=(0, 6))
+
+        cols = ("sent_at", "sent_by", "version", "to", "subject", "eml")
+        self._comms_tree = ttk.Treeview(
+            section, columns=cols, show="headings",
+            selectmode="browse", height=5,
+            style="EntityComms.Treeview",
+        )
+        self._comms_tree.heading("sent_at",  text="Date",    anchor="w")
+        self._comms_tree.heading("sent_by",  text="By",      anchor="w")
+        self._comms_tree.heading("version",  text="Version", anchor="center")
+        self._comms_tree.heading("to",       text="To",      anchor="w")
+        self._comms_tree.heading("subject",  text="Subject", anchor="w")
+        self._comms_tree.heading("eml",      text=".eml",    anchor="center")
+        self._comms_tree.column("sent_at",  width=140, minwidth=100, stretch=False, anchor="w")
+        self._comms_tree.column("sent_by",  width=100, minwidth=60,  stretch=False, anchor="w")
+        self._comms_tree.column("version",  width=60,  minwidth=40,  stretch=False, anchor="center")
+        self._comms_tree.column("to",       width=180, minwidth=80,  stretch=False, anchor="w")
+        self._comms_tree.column("subject",  width=260, minwidth=100, stretch=True,  anchor="w")
+        self._comms_tree.column("eml",      width=40,  minwidth=30,  stretch=False, anchor="center")
+
+        self._comms_sb = make_scrollbar(section, "vertical", self._comms_tree.yview)
+        self._comms_tree.configure(yscrollcommand=self._comms_sb.set)
+        self._comms_tree.bind("<Double-1>", self._on_comms_double_click)
+
+        self._comms_tree.grid(row=1, column=0, sticky="nsew")
+        self._comms_sb.grid(row=1, column=1, sticky="ns")
+
+        self._comms_section = section
+        self._comms_section.grid_remove()   # hidden until there are communications
+
+    def _on_comms_double_click(self, event) -> None:
+        from app.config import COMMUNICATIONS_FOLDER
+
+        tree = self._comms_tree
+        if tree.identify_region(event.x, event.y) != "cell":
+            return
+        iid = tree.focus()
+        if not iid:
+            return
+        values = tree.item(iid, "values")
+        # values: (date, by, version, to, subject, eml_indicator)
+        comm = self._find_comm(values[0], values[1], values[2])
+        if comm is None:
+            return
+        comms_dir = self._project.path / COMMUNICATIONS_FOLDER
+
+        def _on_add_eml(dest: str):
+            comm.eml_filenames.append(dest)
+            self._project._write()
+
+        show_comm_detail_popup(
+            self._window, comm, comms_dir, version_id=values[2],
+            on_add_eml=_on_add_eml,
+            on_files_changed=self._populate_comms,
+        )
+
+    def _find_comm(self, sent_at: str, sent_by: str, version_id: str):
+        """Return the matching CommunicationRecord, or None."""
+        for v in self._project.entity.versions:
+            if v.id == version_id:
+                for c in v.communications:
+                    if c.sent_at == sent_at and c.sent_by == sent_by:
+                        return c
+        return None
+
     # ------------------------------------------------------------------
     # Load
     # ------------------------------------------------------------------
@@ -266,6 +344,7 @@ class EntityFrame(ctk.CTkFrame):
             self._update_heading(col)
         apply_table_style("Entity.Treeview")
         self._populate_table()
+        self._populate_comms()
 
     def _populate_table(self) -> None:
         self._all_rows = []
@@ -283,6 +362,40 @@ class EntityFrame(ctk.CTkFrame):
                 "tags":   (tag,),
             })
         self._refresh_table()
+
+    def _populate_comms(self) -> None:
+        from app.config import COMMUNICATIONS_FOLDER
+        apply_table_style("EntityComms.Treeview")
+        for item in self._comms_tree.get_children():
+            self._comms_tree.delete(item)
+        comms_dir = self._project.path / COMMUNICATIONS_FOLDER
+        rows = []
+        for v in self._project.entity.versions:
+            for c in v.communications:
+                valid = [f for f in c.eml_filenames if (comms_dir / f).exists()]
+                n_valid = len(valid)
+                n_total = len(c.eml_filenames)
+                if n_valid == 0:
+                    eml_ind = "\u2014"
+                elif n_valid == n_total:
+                    eml_ind = "\u2713" if n_total == 1 else f"\u2713{n_total}"
+                else:
+                    eml_ind = f"\u2713{n_valid}/{n_total}"
+                rows.append((c.sent_at, c.sent_by, v.id, c.to, c.subject, eml_ind))
+        if rows:
+            rows.sort(key=lambda r: r[0], reverse=True)  # most recent first
+            for row in rows:
+                self._comms_tree.insert("", "end", values=row)
+            autofit_tree_columns(self._comms_tree)
+            if len(rows) > 5:
+                self._comms_sb.grid(row=1, column=1, sticky="ns")
+            else:
+                self._comms_sb.grid_remove()
+            self.rowconfigure(4, weight=1)
+            self._comms_section.grid()
+        else:
+            self.rowconfigure(4, weight=0)
+            self._comms_section.grid_remove()
 
     def _refresh_table(self) -> None:
         rows  = self._all_rows
@@ -517,10 +630,12 @@ class EntityFrame(ctk.CTkFrame):
 
     def _on_appearance_change(self, _mode: str) -> None:
         apply_table_style("Entity.Treeview")
+        apply_table_style("EntityComms.Treeview")
         for status, color in STATUS_COLORS.items():
             self._table.tag_configure(f"status_{status}", foreground=color)
         if self._project:
             self._populate_table()
+            self._populate_comms()
 
     def _show_error(self, title: str, message: str) -> None:
         from tkinter import messagebox

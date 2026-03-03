@@ -224,3 +224,44 @@ MIGRATIONS["2.4.0"] = (
     "mark iterations with production runs as IterationStatus.PRODUCTION.",
     False,   # minor — auto-applied
 )
+
+
+# ---------------------------------------------------------------------------
+# Migration: 2.5.0 → 2.6.0
+# Add communications list to VersionRecord.
+# ---------------------------------------------------------------------------
+
+def _migrate_2_5_0(raw: dict, migrated_by: str) -> dict:
+    for v in raw.get("versions", []):
+        v.setdefault("communications", [])
+    raw["schema_version"] = "2.6.0"
+    return raw
+
+
+MIGRATIONS["2.5.0"] = (
+    _migrate_2_5_0,
+    "Add communications list to VersionRecord.",
+    False,   # minor — auto-applied
+)
+
+
+# ---------------------------------------------------------------------------
+# Migration: 2.6.0 → 2.7.0
+# Rename eml_filename (str) → eml_filenames (list[str]) in CommunicationRecord.
+# ---------------------------------------------------------------------------
+
+def _migrate_2_6_0(raw: dict, migrated_by: str) -> dict:
+    for v in raw.get("versions", []):
+        for c in v.get("communications", []):
+            if "eml_filenames" not in c:
+                old = c.pop("eml_filename", "")
+                c["eml_filenames"] = [old] if old else []
+    raw["schema_version"] = "2.7.0"
+    return raw
+
+
+MIGRATIONS["2.6.0"] = (
+    _migrate_2_6_0,
+    "Rename eml_filename → eml_filenames (list) in CommunicationRecord.",
+    False,   # minor — auto-applied
+)

@@ -10,7 +10,7 @@ from schema import (
     next_version_id, next_iteration_id, next_run_id,
     build_filename_base, build_run_filename,
     validate_status_transition, validate_mandatory_fields,
-    ArtifactRecord, RunRecord, IterationRecord,
+    ArtifactRecord, CommunicationRecord, RunRecord, IterationRecord,
     VersionRecord, EntityRecord, VersionLog,
 )
 from app.config import (
@@ -84,12 +84,22 @@ def _deserialise_iteration(raw):
         promoted_at=raw.get("promoted_at", ""),
         runs=[_deserialise_run(r) for r in raw.get("runs",[])])
 
+def _deserialise_comm(raw):
+    return CommunicationRecord(
+        sent_at=raw["sent_at"], sent_by=raw["sent_by"],
+        to=raw["to"], subject=raw["subject"],
+        body_summary=raw.get("body_summary", ""),
+        eml_filenames=raw.get("eml_filenames",
+            [raw["eml_filename"]] if raw.get("eml_filename") else []),
+        run_refs=raw.get("run_refs", []))
+
 def _deserialise_version(raw):
     return VersionRecord(
         id=raw["id"], status=VersionStatus(raw["status"]),
         description=raw["description"], created_by=raw["created_by"], created_on=raw["created_on"],
         iterations=[_deserialise_iteration(i) for i in raw.get("iterations",[])],
-        notes=raw.get("notes",[]))
+        notes=raw.get("notes",[]),
+        communications=[_deserialise_comm(c) for c in raw.get("communications", [])])
 
 def _load_log(log_path):
     try: raw = yaml.safe_load(log_path.read_text(encoding="utf-8"))
@@ -117,9 +127,13 @@ def _serialise_log(log):
         "solver_type":i.solver_type.value,"analysis_types":i.analysis_types,
         "status":i.status.value,"notes":i.notes,"promoted_at":i.promoted_at,
         "runs":[run_d(r) for r in i.runs]}
+    def comm_d(c): return {"sent_at":c.sent_at,"sent_by":c.sent_by,
+        "to":c.to,"subject":c.subject,"body_summary":c.body_summary,
+        "eml_filenames":c.eml_filenames,"run_refs":c.run_refs}
     def ver_d(v): return {"id":v.id,"status":v.status.value,"description":v.description,
         "created_by":v.created_by,"created_on":v.created_on,
         "notes":v.notes,
+        "communications":[comm_d(c) for c in v.communications],
         "iterations":[iter_d(i) for i in v.iterations]}
     e = log.entity
     return {"schema_version":log.schema_version,
@@ -463,6 +477,17 @@ class FEAProject:
                         run.artifacts.output)
                     if is_production else [])
         self._write(); return warnings
+
+    def add_communication(self, version_id: str, record: CommunicationRecord,
+                          version_note: str, iter_notes: dict) -> None:
+        """Append a CommunicationRecord and audit notes, then persist."""
+        v = self._get_version(version_id)
+        v.communications.append(record)
+        v.notes.append(version_note)
+        for iter_id, note in iter_notes.items():
+            i = self._get_iteration(v, iter_id)
+            i.notes.append(note)
+        self._write()
 
     def get_latest_version(self):
         return self._log.entity.versions[-1] if self._log.entity.versions else None
