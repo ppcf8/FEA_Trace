@@ -124,6 +124,6 @@ All content frames are created once at startup, stacked with `.grid(row=0, col=0
   `apply_table_style("AssemblyComponents.Treeview")`; file count uses `sc.copied_files` when
   non-empty, otherwise scans the `01_Source/{version_id}/` folder on disk as fallback.
   `MainWindow.get_open_projects()` returns `list(self._projects.values())`.
-- **App version**: `APP_VERSION` in `app/config.py` is decoupled from `SCHEMA_VERSION` and set independently. Current app version: `2.1.0`; schema version: `2.8.0`.
+- **App version**: `APP_VERSION` in `app/config.py` is decoupled from `SCHEMA_VERSION` and set independently. Current app version: `2.3.0`; schema version: `2.8.0`.
 - **Window icon**: `assets/icons/fea_trace.ico`; loaded via `self.iconbitmap((Path(__file__).parent.parent / "assets" / "icons" / "fea_trace.ico").as_posix())` in `MainWindow.__init__`. `.as_posix()` is required — Tcl interprets backslashes as escape characters. `main.py` calls `ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(...)` before window creation so the taskbar also shows the app icon (harmless no-op when compiled to an `.exe`).
 - **Assets**: static files (icons, images) live under `app/assets/icons/`. PNG icons are loaded via `CTkImage` with an absolute path anchored to `Path(__file__)` so they resolve correctly regardless of working directory. `Pillow` is a direct dependency (listed in `requirements.txt`) — `from PIL import Image` is used in frames that load icons.

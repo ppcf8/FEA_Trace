@@ -561,6 +561,10 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `_run_subfolder(version_id, iter_id, run_id)` in `models.py` centralises the format.
   `app/core/models.py` _(2026-02-24)_
 
+- **App version bumped to 2.3.0** — Phase 3: cascade WIP revert from run to parent
+  iteration and version.
+  `app/config.py` _(2026-03-04)_
+
 - **App version bumped to 2.1.0** — Phase 1 quick fixes: copy-button tooltips, audit
   label renames, and `05_Communications` auto-creation.
   `app/config.py` _(2026-03-04)_
