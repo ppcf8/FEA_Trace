@@ -168,6 +168,12 @@ class VersionFrame(ctk.CTkFrame):
         self._audit_panel.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(4, 0))
         self._audit_panel.columnconfigure(0, weight=1)
 
+        ctk.CTkLabel(
+            self._audit_panel, text="Log",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 4))
+
         self._audit_tree = ttk.Treeview(
             self._audit_panel, style="VersionAudit.Treeview",
             columns=("event", "date", "by", "details"),
@@ -181,7 +187,7 @@ class VersionFrame(ctk.CTkFrame):
         self._audit_tree.column("date",    width=140, minwidth=100, stretch=False, anchor="w")
         self._audit_tree.column("by",      width=90,  minwidth=60,  stretch=False, anchor="w")
         self._audit_tree.column("details", width=200, minwidth=80,  stretch=True,  anchor="w")
-        self._audit_tree.grid(row=0, column=0, sticky="ew")
+        self._audit_tree.grid(row=1, column=0, sticky="ew")
 
         self._audit_sb = make_scrollbar(self._audit_panel, "vertical", self._audit_tree.yview)
         self._audit_tree.configure(yscrollcommand=self._audit_sb.set)
@@ -404,7 +410,7 @@ class VersionFrame(ctk.CTkFrame):
                 self._audit_tree.insert("", "end", values=parse_audit_note(note))
             autofit_tree_columns(self._audit_tree)
             if len(system_notes) > 7:
-                self._audit_sb.grid(row=0, column=1, sticky="ns")
+                self._audit_sb.grid(row=1, column=1, sticky="ns")
             else:
                 self._audit_sb.grid_remove()
             self._audit_panel.grid()

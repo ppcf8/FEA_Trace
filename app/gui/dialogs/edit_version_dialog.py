@@ -155,10 +155,10 @@ class EditVersionDialog(ctk.CTkToplevel):
         self._files_frame_outer.grid(row=1, column=0, sticky="ew", pady=(6, 0))
         self._files_frame_outer.columnconfigure(0, weight=1)
 
-        # ── Audit Log ──
+        # ── Log ──
         if self._system_notes:
             ctk.CTkLabel(
-                form, text="Audit Log",
+                form, text="Log",
                 font=ctk.CTkFont(size=12), anchor="nw",
                 text_color="gray",
             ).grid(row=5, column=0, padx=(0, 12), pady=(6, 4), sticky="nw")
