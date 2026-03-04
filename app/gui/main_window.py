@@ -232,7 +232,7 @@ class MainWindow(ctk.CTk):
         if self._active_path and self._active_path in self._projects:
             self._sidebar.refresh_entity(self._projects[self._active_path])
             if self._current_node:
-                self._sidebar.select_node(*self._current_node)
+                self._sidebar.select_node(*self._current_node, scroll=True)
 
     def request_delete_run(self, entity_path: str, version_id: str,
                            iter_id: str, run_id: int) -> None:

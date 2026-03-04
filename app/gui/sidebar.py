@@ -222,7 +222,7 @@ class Sidebar(ctk.CTkFrame):
         project_node = self._tree.insert(
             "", insert_index,
             text=f"  {project_code}",
-            open=True,
+            open=False,
             tags=("tag_project",),
         )
         self._project_nodes[project_code] = project_node
@@ -280,7 +280,7 @@ class Sidebar(ctk.CTkFrame):
         entity_node = self._tree.insert(
             project_node, insert_index,
             text=f"  {e.name}",
-            open=True,
+            open=False,
             tags=("tag_entity",),
         )
         self._entity_nodes[entity_path]  = entity_node
@@ -295,7 +295,7 @@ class Sidebar(ctk.CTkFrame):
             v_node = self._tree.insert(
                 entity_node, "end",
                 text=f"  {v.id}  {status_text}",
-                open=True,
+                open=False,
                 tags=(tag,),
             )
             self._node_map[v_node] = ("version", entity_path, v.id)
@@ -313,7 +313,7 @@ class Sidebar(ctk.CTkFrame):
                 i_node = self._tree.insert(
                     v_node, "end",
                     text=f"  {i.id}  {i.solver_type.value}{status_suffix}",
-                    open=True,
+                    open=False,
                     tags=iter_tags,
                 )
                 self._node_map[i_node] = ("iteration", entity_path, v.id, i.id)
@@ -370,9 +370,13 @@ class Sidebar(ctk.CTkFrame):
     # Selection
     # ------------------------------------------------------------------
 
-    def select_node(self, node_type: str, entity_path: str, *ids) -> None:
-        """Programmatically select and scroll to the tree node matching the
-        given payload, without triggering the selection callback.
+    def select_node(self, node_type: str, entity_path: str, *ids,
+                    scroll: bool = False) -> None:
+        """Programmatically select the tree node matching the given payload,
+        without triggering the selection callback.
+
+        scroll=True also expands ancestors and scrolls to make the node
+        visible (used after a tree rebuild via refresh_sidebar).
 
         The flag is reset via after_idle so it stays True until after the
         queued <<TreeviewSelect>> event has been processed by the event loop.
@@ -382,7 +386,8 @@ class Sidebar(ctk.CTkFrame):
             if payload == target:
                 self._suppress_select = True
                 self._tree.selection_set(node_id)
-                self._tree.see(node_id)
+                if scroll:
+                    self._tree.see(node_id)
                 self._tree.after_idle(
                     lambda: setattr(self, '_suppress_select', False)
                 )

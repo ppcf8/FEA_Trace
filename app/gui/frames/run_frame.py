@@ -163,7 +163,7 @@ class RunFrame(ctk.CTkFrame):
         ).grid(row=2, column=0, padx=(16, 4), pady=(6, 12), sticky="nw")
 
         self._comments_box = ctk.CTkTextbox(
-            panel, height=60, wrap="word", font=ctk.CTkFont(size=12),
+            panel, height=150, wrap="word", font=ctk.CTkFont(size=12),
             state="disabled")
         self._comments_box.grid(row=2, column=1, columnspan=3,
                                 padx=(0, 16), pady=(6, 12), sticky="ew")
