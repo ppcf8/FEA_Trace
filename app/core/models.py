@@ -358,6 +358,12 @@ class FEAProject:
         i.status = target
         self._write()
 
+    def revert_iteration_to_wip(self, version_id: str, iter_id: str, reason: str) -> None:
+        """Revert a PRODUCTION or DEPRECATED iteration to WIP with a mandatory reason."""
+        self.update_iteration_status(
+            version_id, iter_id, IterationStatus.WIP, revert_reason=reason
+        )
+
     def promote_iteration_to_production(
             self, version_id: str, iter_id: str,
             production_run_ids: list[int],

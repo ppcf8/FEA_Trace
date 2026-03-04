@@ -177,6 +177,15 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/gui/sidebar.py`, `app/gui/dialogs/promote_to_production_dialog.py`,
   `app/gui/dialogs/revert_reason_dialog.py` _(2026-02-27)_
 
+- **Run WIP revert cascade to Iteration (and Version)** — When a run is reverted to WIP
+  and its parent iteration is `PRODUCTION`, a `RevertReasonDialog` prompt for the iteration
+  is shown **before** any changes are made. On confirm, the iteration is reverted to WIP
+  (clearing `promoted_at` and all `is_production` flags). If the parent version is also
+  `PRODUCTION`, a second `RevertReasonDialog` prompt cascades it to WIP too. All reasons
+  are collected upfront — cancelling either dialog aborts the entire operation with no state
+  changes. `FEAProject` gains `revert_iteration_to_wip(version_id, iter_id, reason)`.
+  `app/core/models.py`, `app/gui/frames/run_frame.py` _(2026-03-04)_
+
 - **Run status** — WIP → CONVERGED / DIVERGED / PARTIAL / ABORTED; reverting
   terminal states back to WIP requires a reason (`RevertReasonDialog`).
   `schema.py`, `app/core/models.py`, `app/gui/dialogs/revert_reason_dialog.py` _(initial)_
@@ -552,6 +561,10 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `_run_subfolder(version_id, iter_id, run_id)` in `models.py` centralises the format.
   `app/core/models.py` _(2026-02-24)_
 
+- **App version bumped to 2.3.0** — Phase 3: cascade WIP revert from run to parent
+  iteration and version.
+  `app/config.py` _(2026-03-04)_
+
 - **App version bumped to 2.1.0** — Phase 1 quick fixes: copy-button tooltips, audit
   label renames, and `05_Communications` auto-creation.
   `app/config.py` _(2026-03-04)_
@@ -617,25 +630,7 @@ Phased plan from colleague feedback, ordered easiest → hardest.
 
 ---
 
-### Phase 3 — Cascade Logic
-
-- **Run WIP revert cascades to parent Iteration (and Version) WIP** — When a run's status is
-  reverted to WIP via `RunFrame._on_revert_to_wip()`, check whether its parent iteration is
-  `PRODUCTION`. If so, force-revert the iteration to WIP (clearing `promoted_at` and all
-  `is_production` flags) after capturing a mandatory reason via `RevertReasonDialog`. Then check
-  whether the parent version is `PRODUCTION`; if so, also revert it to WIP (second
-  `RevertReasonDialog` prompt). The cascade appends the appropriate `[Reverted to WIP]` audit notes
-  to both `iteration.notes` and `version.notes`. `FEAProject` gains a helper
-  `revert_iteration_to_wip(version_id, iter_id, reason)` and
-  `update_version_status(version_id, VersionStatus.WIP, reason)` extended to accept an optional
-  reason for system-note generation. After the cascade, `MainWindow` reloads the current frame and
-  refreshes the sidebar.
-  `app/core/models.py`, `app/gui/frames/run_frame.py`, `app/gui/main_window.py`,
-  `app/gui/dialogs/revert_reason_dialog.py`
-
----
-
-### Phase 4 — Layout & Resizing
+### Phase 3 — Layout & Resizing
 
 - **Minimum table height (5 rows + headers) for small screens** — All summary `ttk.Treeview` tables
   (Versions in `EntityFrame`, Iterations in `VersionFrame`, Runs in `IterationFrame`) must display at

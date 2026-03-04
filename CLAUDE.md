@@ -40,7 +40,7 @@ EntityRecord
 
 **Version:** WIP / PRODUCTION / DEPRECATED. All transitions valid except `DEPRECATED → PRODUCTION` directly. `WIP → DEPRECATED` requires a mandatory reason via `RevertReasonDialog(mode="deprecate")`; confirmed reason is appended as a `[Deprecated]` system note. Promoting to PRODUCTION requires at least one iteration with `status == PRODUCTION` (enforced in `update_version_status`). After promoting an iteration, a Yes/No dialog offers to also promote the parent version if it is still WIP.
 
-**Run:** WIP → CONVERGED / DIVERGED / PARTIAL / ABORTED; reverting any terminal state back to WIP requires a reason (captured via `RevertReasonDialog`). `RevertReasonDialog` accepts a `mode` parameter: `"revert"` (default — title "Revert to WIP") or `"deprecate"` (title "Mark as Deprecated") which adapts the dialog title, description, and confirm button label.
+**Run:** WIP → CONVERGED / DIVERGED / PARTIAL / ABORTED; reverting any terminal state back to WIP requires a reason (captured via `RevertReasonDialog`). `RevertReasonDialog` accepts a `mode` parameter: `"revert"` (default — title "Revert to WIP") or `"deprecate"` (title "Mark as Deprecated") which adapts the dialog title, description, and confirm button label. **Cascade on revert to WIP**: if the parent iteration is PRODUCTION, a `RevertReasonDialog` for the iteration is shown *before* any changes; on confirm the iteration is reverted to WIP (clearing `promoted_at` and all `is_production` flags). If the parent version is also PRODUCTION a second prompt cascades it to WIP. All reasons are collected upfront — cancelling either dialog aborts the entire operation with no changes. `FEAProject.revert_iteration_to_wip(version_id, iter_id, reason)` is the model-layer helper; cascade logic lives in `RunFrame._collect_cascade_reasons()`.
 
 ### UI Layout
 
@@ -124,6 +124,6 @@ All content frames are created once at startup, stacked with `.grid(row=0, col=0
   `apply_table_style("AssemblyComponents.Treeview")`; file count uses `sc.copied_files` when
   non-empty, otherwise scans the `01_Source/{version_id}/` folder on disk as fallback.
   `MainWindow.get_open_projects()` returns `list(self._projects.values())`.
-- **App version**: `APP_VERSION` in `app/config.py` is decoupled from `SCHEMA_VERSION` and set independently. Current app version: `2.1.0`; schema version: `2.8.0`.
+- **App version**: `APP_VERSION` in `app/config.py` is decoupled from `SCHEMA_VERSION` and set independently. Current app version: `2.3.0`; schema version: `2.8.0`.
 - **Window icon**: `assets/icons/fea_trace.ico`; loaded via `self.iconbitmap((Path(__file__).parent.parent / "assets" / "icons" / "fea_trace.ico").as_posix())` in `MainWindow.__init__`. `.as_posix()` is required — Tcl interprets backslashes as escape characters. `main.py` calls `ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(...)` before window creation so the taskbar also shows the app icon (harmless no-op when compiled to an `.exe`).
 - **Assets**: static files (icons, images) live under `app/assets/icons/`. PNG icons are loaded via `CTkImage` with an absolute path anchored to `Path(__file__)` so they resolve correctly regardless of working directory. `Pillow` is a direct dependency (listed in `requirements.txt`) — `from PIL import Image` is used in frames that load icons.

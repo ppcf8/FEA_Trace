@@ -594,6 +594,16 @@ class RunFrame(ctk.CTkFrame):
     def _on_status_change(self, target: RunStatus) -> None:
         if not self._project or self._run_id is None:
             return
+
+        # For WIP reverts, collect cascade reasons upfront before any changes.
+        iter_reason: str | None = None
+        version_reason: str | None = None
+        if target == RunStatus.WIP:
+            result = self._collect_cascade_reasons()
+            if result is None:
+                return  # user cancelled — nothing changed
+            iter_reason, version_reason = result
+
         comments = self._comments_box.get("1.0", "end").strip()
         try:
             self._project.update_run_status(
@@ -606,10 +616,51 @@ class RunFrame(ctk.CTkFrame):
             self._show_error("Status Change Failed", str(exc))
             return
 
+        # Apply cascade (all reasons already collected — no dialogs shown here).
+        if iter_reason is not None:
+            self._project.revert_iteration_to_wip(
+                self._version_id, self._iter_id, iter_reason
+            )
+        if version_reason is not None:
+            self._project.update_version_status(
+                self._version_id, VersionStatus.WIP, revert_reason=version_reason
+            )
+
         self._window.refresh_sidebar()
         self._window.set_status(f"Run {self._run_id:02d} → {target.value}")
         self.load(self._project, self._version_id,
                   self._iter_id, self._run_id)
+
+    def _collect_cascade_reasons(self) -> tuple[str | None, str | None] | None:
+        """Check parent iteration/version status and collect revert reasons upfront.
+
+        Returns (iter_reason, version_reason) — each is a reason string or None
+        if that level doesn't need cascading.
+        Returns None (outer) if the user cancelled any required dialog.
+        """
+        from app.gui.dialogs.revert_reason_dialog import RevertReasonDialog
+
+        version = self._project._get_version(self._version_id)
+        iteration = self._project._get_iteration(version, self._iter_id)
+        if iteration.status != IterationStatus.PRODUCTION:
+            return (None, None)  # no cascade needed
+
+        dlg = RevertReasonDialog(self._window, self._iter_id, entity_type="Iteration")
+        self._window.wait_window(dlg)
+        if dlg.result is None:
+            return None  # user cancelled — abort entire revert
+
+        iter_reason = dlg.result
+
+        if version.status != VersionStatus.PRODUCTION:
+            return (iter_reason, None)
+
+        dlg2 = RevertReasonDialog(self._window, self._version_id, entity_type="Version")
+        self._window.wait_window(dlg2)
+        if dlg2.result is None:
+            return None  # user cancelled — abort entire revert
+
+        return (iter_reason, dlg2.result)
 
     def _on_delete_run(self) -> None:
         if not self._project or self._run_id is None:
