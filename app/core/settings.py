@@ -1,5 +1,6 @@
 """
-app/core/settings.py — User preference persistence (project-code & entity-name presets).
+app/core/settings.py — User preference persistence (project-code & entity-name presets,
+analysis-type presets).
 
 Each preset entry is a dict {"name": str, "id": str} where id may be "".
 The JSON on disk omits the "id" key when it is empty to keep files readable.
@@ -18,11 +19,20 @@ from typing import Optional
 _SETTINGS_DIR  = Path.home() / "Documents" / "FEA_Trace"
 _SETTINGS_PATH = _SETTINGS_DIR / "settings.json"
 
+_DEFAULT_ANALYSIS_TYPES: list[str] = [
+    "NLSTAT", "LINEAR", "NORMAL MODES", "BUCKLING",
+    "FATIGUE", "FREQ RESPONSE", "TRANSIENT",
+    "CRASH", "QUASI-STATIC", "TOPOLOGY OPT",
+]
+
 
 @dataclass
 class AppSettings:
     project_presets: dict[str, list[dict[str, str]]] = field(default_factory=dict)
     # {"PROJ_A": [{"name": "Wing", "id": "WNG"}, {"name": "Fuselage", "id": ""}], …}
+    analysis_types: list[str] = field(
+        default_factory=lambda: list(_DEFAULT_ANALYSIS_TYPES)
+    )
 
 
 class SettingsManager:
@@ -59,6 +69,10 @@ class SettingsManager:
                             parsed.append({"name": name, "id": eid})
                 result[str(code)] = parsed
             self.settings.project_presets = result
+            raw_types = raw.get("analysis_types", None)
+            if isinstance(raw_types, list):
+                cleaned = [str(t).strip() for t in raw_types if str(t).strip()]
+                self.settings.analysis_types = cleaned if cleaned else list(_DEFAULT_ANALYSIS_TYPES)
         except Exception:
             # Silently ignore corrupt / unreadable settings
             pass
@@ -74,7 +88,13 @@ class SettingsManager:
             for code, entries in self.settings.project_presets.items()
         }
         _SETTINGS_PATH.write_text(
-            json.dumps({"project_presets": serializable}, indent=2, ensure_ascii=False),
+            json.dumps(
+                {
+                    "project_presets": serializable,
+                    "analysis_types": self.settings.analysis_types,
+                },
+                indent=2, ensure_ascii=False,
+            ),
             encoding="utf-8",
         )
 
@@ -129,6 +149,14 @@ class SettingsManager:
                     entry["id"] = entity_id
                 return
         presets[project_code].append({"name": name, "id": entity_id})
+
+    def get_analysis_types(self) -> list[str]:
+        """Current ordered list of analysis type labels."""
+        return list(self.settings.analysis_types)
+
+    def set_analysis_types(self, types: list[str]) -> None:
+        """Replace the analysis type list (in-memory only — call save() to persist)."""
+        self.settings.analysis_types = list(types)
 
     # ------------------------------------------------------------------
     # Import
