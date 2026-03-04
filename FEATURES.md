@@ -244,6 +244,18 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `REQUIRED_PRODUCTION_ARTIFACTS[EXPLICIT]` in `config.py`.
   `app/config.py`, `app/gui/frames/run_frame.py` _(2026-02-26)_
 
+- **Mousehover hints for copy buttons** — `add_hint()` tooltips (600 ms) added to the
+  filename-copy and path-copy icon buttons in `RunFrame`: `"Copy filename"` and
+  `"Copy full path"`, matching the style of existing field-label hints.
+  `app/gui/frames/run_frame.py` _(2026-03-04)_
+
+- **"Audit Log" → "Log" label; add missing label on VersionFrame** — Renamed every
+  `"Audit Log"` section header to `"Log"` in `IterationFrame`, `EditVersionDialog`, and
+  `EditIterationDialog`. Added the missing `"Log"` `ctk.CTkLabel` above the audit
+  `ttk.Treeview` in `VersionFrame` (previously the table appeared without a visible label).
+  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
+  `app/gui/dialogs/edit_version_dialog.py`, `app/gui/dialogs/edit_iteration_dialog.py` _(2026-03-04)_
+
 - **Run panel clipboard & folder actions** — Solver Deck row gains two PNG icon
   buttons: copy filename to clipboard (`copy.png`) and copy full path to clipboard
   (`copy_with_path.png`). An **Open Folder** button opens the `Run_##` subfolder in
@@ -511,6 +523,16 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `_run_subfolder(version_id, iter_id, run_id)` in `models.py` centralises the format.
   `app/core/models.py` _(2026-02-24)_
 
+- **App version bumped to 2.1.0** — Phase 1 quick fixes: copy-button tooltips, audit
+  label renames, and `05_Communications` auto-creation.
+  `app/config.py` _(2026-03-04)_
+
+- **Auto-create `05_Communications` folder on entity creation** — Added
+  `"05_Communications"` to `REQUIRED_FOLDERS` in `schema.py` so `FEAProject.create()`
+  creates the folder alongside `01_Source`, `02_Models`, `03_Runs`, `04_Results`, and
+  `90_Scripts` from day one.
+  `schema.py` _(2026-03-04)_
+
 - **App version decoupled from schema version** — `APP_VERSION` in `app/config.py` set
   independently of `SCHEMA_VERSION`; bumped to `2.0.0`.
   `app/config.py` _(2026-02-23)_
@@ -563,27 +585,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Planned Improvements (v2.x)
 
 Phased plan from colleague feedback, ordered easiest → hardest.
-
----
-
-### Phase 1 — Quick Fixes & Cosmetic (no logic changes)
-
-- **Mousehover hints for copy buttons** — Add `add_hint()` tooltips (600 ms, from `theme.py`) to the
-  filename-copy and path-copy icon buttons in `RunFrame`, matching the style of existing field-label
-  hints. Hint text: `"Copy filename"` / `"Copy full path"`.
-  `app/gui/frames/run_frame.py`
-
-- **"Audit Log" → "Log" label; add missing label on VersionFrame** — Two sub-fixes: (1) rename every
-  `"Audit Log"` section header to `"Log"` in `VersionFrame`, `IterationFrame`, `EditVersionDialog`,
-  and `EditIterationDialog`; (2) `VersionFrame` currently shows the audit `ttk.Treeview` without a
-  visible section label — add one using the same `ctk.CTkLabel` pattern used in `IterationFrame`.
-  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
-  `app/gui/dialogs/edit_version_dialog.py`, `app/gui/dialogs/edit_iteration_dialog.py`
-
-- **Auto-create `05_Communications` folder on entity creation** — `FEAProject.create()` currently
-  `mkdir`s `01_Source`, `02_Models`, and `03_Runs`. Add `COMMUNICATIONS_FOLDER` (`05_Communications`)
-  to that sequence so the folder exists from day one, consistent with the other standard folders.
-  `app/core/models.py`
 
 ---
 
