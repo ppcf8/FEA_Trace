@@ -181,7 +181,7 @@ class EditVersionDialog(ctk.CTkToplevel):
             self._audit_tree.column("date",    width=135, minwidth=100, stretch=False, anchor="w")
             self._audit_tree.column("by",      width=75,  minwidth=50,  stretch=False, anchor="w")
             self._audit_tree.column("details", width=150, minwidth=80,  stretch=True,  anchor="w")
-            self._audit_tree.grid(row=0, column=0, sticky="ew")
+            self._audit_tree.grid(row=0, column=0, sticky="nsew")
 
             sb = make_scrollbar(audit_wrap, "vertical", self._audit_tree.yview)
             self._audit_tree.configure(yscrollcommand=sb.set)

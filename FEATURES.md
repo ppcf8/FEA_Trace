@@ -310,6 +310,35 @@ Format: **Feature name** — description. `Files touched.` _(date)_
   `app/gui/frames/iteration_frame.py`, `app/gui/dialogs/edit_version_dialog.py`,
   `app/gui/dialogs/edit_iteration_dialog.py` _(2026-03-02)_
 
+- **Audit log fixed height + always-visible scrollbar** — Audit `ttk.Treeview` in
+  `VersionFrame`, `IterationFrame`, `EditVersionDialog`, and `EditIterationDialog` changed
+  from `height=7` (dynamic) to `height=5` (fixed). The vertical scrollbar is now always
+  shown unconditionally (removed the `> 7 entries` guard). Treeview `sticky` changed from
+  `"ew"` to `"nsew"` so it fills the grid cell and eliminates the vertical gap that
+  appeared when the always-present `CTkScrollbar` requested more height than the treeview.
+  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
+  `app/gui/dialogs/edit_version_dialog.py`, `app/gui/dialogs/edit_iteration_dialog.py` _(2026-03-04)_
+
+- **Communications table searchbox** — Real-time `"Search:"` bar (label + `CTkEntry` + ✕
+  clear button) added above the communications `ttk.Treeview` in `EntityFrame`. Identical
+  in style and behaviour to the search bars on the Versions / Iterations / Runs summary
+  tables. `_search_comms_var: ctk.StringVar` drives `_refresh_comms()`; combined AND with
+  active column filters. State reset on `load()`.
+  `app/gui/frames/entity_frame.py` _(2026-03-04)_
+
+- **Mark Deprecated always requires a reason** — `WIP → DEPRECATED` transitions for both
+  `VersionFrame` and `IterationFrame` now open `RevertReasonDialog` (with
+  `mode="deprecate"`) before executing the status change. The confirmed reason is appended
+  as a `[Deprecated] on {date} by {user} — {reason}` system note to `version.notes` /
+  `iteration.notes`. `RevertReasonDialog` extended with a `mode` parameter
+  (`"revert"` default, `"deprecate"`) that adapts the title, description text, and confirm
+  button label. `AUDIT_NOTE_PREFIXES` updated with `"[Deprecated"`; `parse_audit_note` and
+  `parse_audit_note_extended` updated to parse the new format into
+  `("Deprecated", date, by, reason)` columns.
+  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
+  `app/gui/dialogs/revert_reason_dialog.py`, `app/gui/theme.py`,
+  `app/core/models.py` _(2026-03-04)_
+
 - **Version audit trail protection** — `EditVersionDialog` splits `version.notes` into
   user-editable notes and immutable system revert entries (lines prefixed `[REVERTED`).
   Revert entries are shown in a separate read-only `CTkTextbox` (`state="disabled"`) and
@@ -585,35 +614,6 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 ## Planned Improvements (v2.x)
 
 Phased plan from colleague feedback, ordered easiest → hardest.
-
----
-
-### Phase 2 — UI Enhancements
-
-- **Audit log table fixed at 5 rows + headers, always visible with scrollbar** — Change the
-  `height=` parameter of the audit `ttk.Treeview` in `VersionFrame` and `IterationFrame` from the
-  dynamic 7-row default to a fixed `height=5`. Show the vertical scrollbar unconditionally (remove
-  the current "only when > 7 entries" guard). Apply the same change to `EditVersionDialog` and
-  `EditIterationDialog`.
-  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
-  `app/gui/dialogs/edit_version_dialog.py`, `app/gui/dialogs/edit_iteration_dialog.py`
-
-- **Communications table searchbox** — Add a real-time `"Search:"` bar (label + `CTkEntry` + ✕
-  clear button) above the communications `ttk.Treeview` in `EntityFrame`, identical in style and
-  behaviour to the search bars already present on the Versions / Iterations / Runs summary tables.
-  `_search_comms_var: ctk.StringVar` drives `_refresh_comms_table()`; combined AND with active
-  column filters.
-  `app/gui/frames/entity_frame.py`
-
-- **Mark Deprecated always requires a reason** — Currently only reverting from DEPRECATED → WIP
-  requires a reason; the initial WIP → DEPRECATED transition is silent. Open `RevertReasonDialog`
-  (with `entity_type` set appropriately) before executing the deprecation for both `IterationFrame`
-  and `VersionFrame`. The reason is appended as a `[Deprecated] on {date} by {user} — {reason}`
-  system note to `iteration.notes` / `version.notes`. `parse_audit_note` and the audit tables
-  updated to recognise the new `[Deprecated` prefix.
-  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
-  `app/gui/dialogs/revert_reason_dialog.py`, `app/gui/theme.py`,
-  `app/core/models.py`
 
 ---
 

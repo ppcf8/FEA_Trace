@@ -277,7 +277,7 @@ class IterationFrame(ctk.CTkFrame):
         self._audit_tree.column("by",      width=90,  minwidth=60,  stretch=False, anchor="w")
         self._audit_tree.column("runs",    width=60,  minwidth=40,  stretch=False, anchor="w")
         self._audit_tree.column("details", width=200, minwidth=80,  stretch=True,  anchor="w")
-        self._audit_tree.grid(row=0, column=0, sticky="ew")
+        self._audit_tree.grid(row=0, column=0, sticky="nsew")
 
         self._audit_sb = make_scrollbar(self._audit_panel, "vertical", self._audit_tree.yview)
         self._audit_tree.configure(yscrollcommand=self._audit_sb.set)
