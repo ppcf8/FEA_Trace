@@ -59,7 +59,7 @@ SOLVER_EXTENSIONS: dict[SolverType, str] = {
 }
 
 REQUIRED_FOLDERS: list[str] = [
-    "01_Source", "02_Models", "03_Runs", "04_Results", "90_Scripts",
+    "01_Source", "02_Models", "03_Runs", "04_Results", "05_Communications", "90_Scripts",
 ]
 
 VOWELS            = frozenset("AEIOU")

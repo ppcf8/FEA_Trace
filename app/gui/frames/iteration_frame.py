@@ -246,7 +246,7 @@ class IterationFrame(ctk.CTkFrame):
         panel.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            panel, text="Audit Log",
+            panel, text="Log",
             font=ctk.CTkFont(size=12, weight="bold"),
             anchor="nw",
         ).grid(row=0, column=0, sticky="w", pady=(0, 4))

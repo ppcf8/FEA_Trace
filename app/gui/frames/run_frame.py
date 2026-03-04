@@ -119,18 +119,22 @@ class RunFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=12, family="Courier New"),
         ).pack(side="left", padx=(0, 8))
 
-        ctk.CTkButton(
+        _copy_fn_btn = ctk.CTkButton(
             fname_row, text="", image=_IMG_COPY,
             width=32, height=32,
             command=self._copy_filename,
-        ).pack(side="left", padx=(0, 6))
+        )
+        _copy_fn_btn.pack(side="left", padx=(0, 6))
+        add_hint(_copy_fn_btn, "Copy filename")
 
         self._run_folder_var = ctk.StringVar(value="—")
-        ctk.CTkButton(
+        _copy_path_btn = ctk.CTkButton(
             fname_row, text="", image=_IMG_COPY_PATH,
             width=32, height=32,
             command=self._copy_folder_path,
-        ).pack(side="left", padx=(0, 6))
+        )
+        _copy_path_btn.pack(side="left", padx=(0, 6))
+        add_hint(_copy_path_btn, "Copy full path")
 
         ctk.CTkButton(
             fname_row, text="Open Folder",

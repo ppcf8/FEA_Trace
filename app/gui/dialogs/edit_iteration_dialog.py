@@ -130,7 +130,7 @@ class EditIterationDialog(ctk.CTkToplevel):
         # Audit log (read-only table) — only shown when entries exist
         if self._system_notes:
             ctk.CTkLabel(
-                form, text="Audit Log",
+                form, text="Log",
                 font=ctk.CTkFont(size=12), anchor="nw",
                 text_color="gray",
             ).grid(row=4, column=0, padx=(0, 12), pady=(6, 4), sticky="nw")
