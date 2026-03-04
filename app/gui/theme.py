@@ -272,7 +272,7 @@ def add_hint(widget: tk.Widget, text: str) -> None:
 # 6. Audit Note Parser
 # ---------------------------------------------------------------------------
 
-AUDIT_NOTE_PREFIXES = ("[Reverted", "[Promoted", "[REVERTED", "[Sent Output")
+AUDIT_NOTE_PREFIXES = ("[Reverted", "[Promoted", "[REVERTED", "[Sent Output", "[Deprecated")
 
 
 def parse_audit_note(note: str) -> tuple[str, str, str, str]:
@@ -296,6 +296,9 @@ def parse_audit_note(note: str) -> tuple[str, str, str, str]:
     m = re.match(r'\[Sent Output\] on (.+?) by (.+?) — To: (.+?) — Subject: (.+)', note)
     if m:
         return "Sent Output", m.group(1), m.group(2), f"To: {m.group(3)} — Subject: {m.group(4)}"
+    m = re.match(r'\[Deprecated\] on (.+?) by (.+?) — (.+)', note)
+    if m:
+        return "Deprecated", m.group(1), m.group(2), m.group(3)
     return "System Note", "", "", note
 
 
@@ -321,6 +324,9 @@ def parse_audit_note_extended(note: str) -> tuple[str, str, str, str, str]:
     m = re.match(r'\[Sent Output\] on (.+?) by (.+?) — To: (.+?) — Subject: (.+)', note)
     if m:
         return "Sent Output", m.group(1), m.group(2), "—", f"To: {m.group(3)} — Subject: {m.group(4)}"
+    m = re.match(r'\[Deprecated\] on (.+?) by (.+?) — (.+)', note)
+    if m:
+        return "Deprecated", m.group(1), m.group(2), "—", m.group(3)
     return "System Note", "", "", "—", note
 
 

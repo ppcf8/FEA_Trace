@@ -140,11 +140,10 @@ class EditIterationDialog(ctk.CTkToplevel):
             audit_wrap.grid(row=4, column=1, pady=(6, 4), sticky="ew")
             audit_wrap.columnconfigure(0, weight=1)
 
-            n_rows = min(len(self._system_notes), 3)
             self._audit_tree = ttk.Treeview(
                 audit_wrap, style="Audit.Treeview",
                 columns=("event", "date", "by", "details"),
-                show="headings", height=n_rows,
+                show="headings", height=5,
             )
             self._audit_tree.heading("event",   text="Event",   anchor="center")
             self._audit_tree.heading("date",    text="Date",    anchor="w")
@@ -156,10 +155,9 @@ class EditIterationDialog(ctk.CTkToplevel):
             self._audit_tree.column("details", width=150, minwidth=80,  stretch=True,  anchor="w")
             self._audit_tree.grid(row=0, column=0, sticky="ew")
 
-            if len(self._system_notes) > 3:
-                sb = make_scrollbar(audit_wrap, "vertical", self._audit_tree.yview)
-                self._audit_tree.configure(yscrollcommand=sb.set)
-                sb.grid(row=0, column=1, sticky="ns")
+            sb = make_scrollbar(audit_wrap, "vertical", self._audit_tree.yview)
+            self._audit_tree.configure(yscrollcommand=sb.set)
+            sb.grid(row=0, column=1, sticky="ns")
 
         # Error label
         self._error_label = ctk.CTkLabel(

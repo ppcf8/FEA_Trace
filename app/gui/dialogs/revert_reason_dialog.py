@@ -2,8 +2,8 @@
 dialogs/revert_reason_dialog.py
 =================================
 Shown when a user attempts to revert a Version or Iteration status back to WIP
-from DEPRECATED. Requires a non-empty reason which is automatically appended
-to the entity's notes list with a timestamp.
+from DEPRECATED, or when deprecating a Version or Iteration (requires a reason).
+The reason is automatically appended to the entity's notes list with a timestamp.
 """
 
 from __future__ import annotations
@@ -18,38 +18,57 @@ class RevertReasonDialog(ctk.CTkToplevel):
     parent      : MainWindow
     entity_id   : displayed in the dialog title for clarity
     entity_type : "Version" (default) or "Iteration"
+    mode        : "revert" (default) — revert to WIP
+                  "deprecate"        — mark as Deprecated
 
     Attributes
     ----------
     result : str | None  — the reason text, or None if cancelled
     """
 
-    def __init__(self, parent, entity_id: str, entity_type: str = "Version"):
+    def __init__(self, parent, entity_id: str,
+                 entity_type: str = "Version", mode: str = "revert"):
         super().__init__(parent)
-        self.title(f"Revert {entity_id} to WIP")
         self.geometry("480x280")
         self.resizable(False, False)
         self.grab_set()
 
         self.result: str | None = None
-        self._build(entity_id, entity_type)
+        self._build(entity_id, entity_type, mode)
 
-    def _build(self, entity_id: str, entity_type: str) -> None:
+    def _build(self, entity_id: str, entity_type: str, mode: str) -> None:
         self.columnconfigure(0, weight=1)
+
+        if mode == "deprecate":
+            self.title(f"Deprecate {entity_id}")
+            heading = f"Deprecate {entity_id}"
+            desc = (
+                f"This action will deprecate the {entity_type.lower()}.\n"
+                "A mandatory reason must be provided — it will be\n"
+                f"permanently appended to the {entity_type.lower()} notes."
+            )
+            confirm_text = "Mark Deprecated"
+            confirm_color = "#888888"
+        else:
+            self.title(f"Revert {entity_id} to WIP")
+            heading = f"Revert {entity_id} to WIP"
+            desc = (
+                f"This action will revert the {entity_type.lower()} status to WIP.\n"
+                "A mandatory reason must be provided — it will be\n"
+                f"permanently appended to the {entity_type.lower()} notes."
+            )
+            confirm_text = "Revert to WIP"
+            confirm_color = "#4A90D9"
 
         ctk.CTkLabel(
             self,
-            text=f"Revert {entity_id} to WIP",
+            text=heading,
             font=ctk.CTkFont(size=18, weight="bold"),
         ).grid(row=0, column=0, padx=24, pady=(20, 8), sticky="w")
 
         ctk.CTkLabel(
             self,
-            text=(
-                f"This action will revert the {entity_type.lower()} status to WIP.\n"
-                "A mandatory reason must be provided — it will be\n"
-                f"permanently appended to the {entity_type.lower()} notes."
-            ),
+            text=desc,
             font=ctk.CTkFont(size=12),
             justify="left",
         ).grid(row=1, column=0, padx=24, pady=(0, 12), sticky="w")
@@ -79,8 +98,8 @@ class RevertReasonDialog(ctk.CTkToplevel):
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
-            btn_frame, text="Revert to WIP", width=130,
-            fg_color="#4A90D9",
+            btn_frame, text=confirm_text, width=130,
+            fg_color=confirm_color,
             command=self._on_confirm,
         ).pack(side="left")
 
