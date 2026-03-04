@@ -1,0 +1,195 @@
+schema_version: 2.8.0
+entity:
+  id: WNGRB7
+  name: Wing Rib 7
+  project: AERO
+  owner_team: Structural Analysis
+  created_by: m.jones
+  created_on: '2025-09-20 10:00:00'
+versions:
+- id: V01
+  status: production
+  description: Baseline fatigue model for the critical wing rib at station WS 1740.
+    Thin-shell elements for the rib panel, solid hex at fastener rows and critical
+    notch locations per GL-FEM-003. Spectrum loading from SD-2025-011. Fatigue life
+    target 45,000 cycles at scatter factor 3.0 per CS-25.571.
+  created_by: m.jones
+  created_on: '2025-09-20 10:00:00'
+  notes:
+  - V01 created for CDR load case certification. Covers fatigue and static strength
+    at critical rib station WS 1740.
+  - Model validated against hand calculation - fastener forces within 5%, rib foot
+    stress within 9%.
+  - '[Promoted to Production] on 2025-10-10 16:00:00 by m.jones - Runs: Run 01'
+  communications: []
+  source_components: []
+  iterations:
+  - id: I01
+    description: Combined fatigue and linear static analysis at nominal spectrum loading.
+      Shell elements for rib panel (2mm mesh), solid hex at fastener rows (1mm) per
+      GL-FEM-003. Fastener forces extracted for joint allowable check per TS-FAS-2210.
+      Fatigue life target 45,000 cycles at SF=3.0 per CS-25.571. S-N curves for 7075-T6
+      aluminium per MMPDS-12.
+    filename_base: AERO_WNGRB7_V01I01_IMPLICIT
+    created_by: m.jones
+    created_on: '2025-09-20 10:00:00'
+    solver_type: IMPLICIT
+    analysis_types:
+    - FATIGUE
+    - LINEAR
+    status: production
+    notes:
+    - 'Fatigue life at rib foot: 137,500 raw cycles - at SF=3.0 gives 45,833 effective
+      cycles. Passes 45,000 target (margin 1.8%).'
+    - 'Max fastener force: 12.4 kN (allowable 15.2 kN per TS-FAS-2210, margin 18.5%).'
+    - 'Max rib foot stress: 189 MPa (allowable 215 MPa, margin 12.1%).'
+    - Results reviewed and signed off in DRB-2025-088 on 2025-10-08.
+    - '[Promoted to Production] on 2025-10-10 16:00:00 by m.jones - Runs: Run 01'
+    promoted_at: '2025-10-10 16:00:00'
+    runs:
+    - id: 1
+      name: Run 01
+      date: '2025-09-22 13:30:00'
+      status: converged
+      created_by: m.jones
+      comments: 'All fastener forces within allowable per TS-FAS-2210.
+
+        Peak rib foot stress: 189 MPa (allowable 215 MPa, margin 12.1%).
+
+        Fatigue life: 137,500 raw cycles / 45,833 at SF=3.0. Passes 45,000 cycle target.
+
+        First natural frequency: 78 Hz - no flutter concerns.
+
+        Hand calc correlation: 5% on fastener forces, 9% on rib foot stress.
+
+        Model reviewed by m.jones and signed off 2025-09-22. Ready for DRB.'
+      artifacts:
+        input: []
+        output: []
+        is_production: true
+- id: V02
+  status: WIP
+  description: Design update per ECO-2025-441 - web thickness increased 1.6mm to 2.1mm,
+    flange width increased 8mm to improve fatigue margin. Drawing updated to REV C
+    (released 2025-10-28). Source STEP cross-referenced against Fuselage Frame V01
+    for attachment interface verification.
+  created_by: m.jones
+  created_on: '2025-11-03 09:00:00'
+  notes:
+  - V02 created following ECO-2025-441 approval (2025-10-25). Geometry from design
+    STEP release 2025-10-28.
+  - Source geometry cross-referenced with Fuselage Frame V01 for attachment interface.
+    STEP copied to 01_Source/V02/.
+  communications: []
+  source_components:
+  - entity_path: C:\Users\pedro.cferreira\Documents\FEA_Trace\Examples\AERO_FSLGFRM
+    entity_name: Fuselage Frame
+    project_code: AERO
+    version_id: V01
+    copied_files:
+    - AERO_FSLGFRM_V01_assembly.step
+  iterations:
+  - id: I01
+    description: Linear static and fatigue with updated REV C cross-section (thicker
+      web, wider flange). Same spectrum loading and BCs as V01 I01 for direct comparison.
+      Verify fatigue life improvement and confirm fastener forces remain within allowable.
+    filename_base: AERO_WNGRB7_V02I01_IMPLICIT
+    created_by: m.jones
+    created_on: '2025-11-03 09:00:00'
+    solver_type: IMPLICIT
+    analysis_types:
+    - LINEAR
+    - FATIGUE
+    status: WIP
+    notes:
+    - Run 01 shows significant fatigue life improvement (68,000 vs 45,833 effective
+      cycles at SF=3.0). Weight increase 0.34 kg - discuss with weight team.
+    - Run 02 in progress - tighter 1.5mm mesh at rib foot to confirm stress concentration
+      factor.
+    promoted_at: ''
+    runs:
+    - id: 1
+      name: Run 01
+      date: '2025-11-05 08:00:00'
+      status: converged
+      created_by: m.jones
+      comments: 'REV C geometry (web 2.1mm, flange +8mm vs REV A).
+
+        Peak rib foot stress: 166 MPa (vs 189 MPa V01 - 12.2% reduction).
+
+        Fatigue life: 204,000 raw / 68,000 at SF=3.0 (vs 45,833 V01 - 48% improvement).
+
+        Max fastener force: 11.1 kN (allowable 15.2 kN, margin 26.9%).
+
+        Weight increase vs V01: +0.34 kg per rib. Discuss with weight team before
+        committing.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+    - id: 2
+      name: Run 02
+      date: '2025-11-10 11:00:00'
+      status: partial
+      created_by: m.jones
+      comments: 'Mesh refined at rib foot from 2mm to 1.5mm to confirm stress concentration
+        factor.
+
+        Submitted to cluster at 11:00 - currently running.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+  - id: I02
+    description: Bird strike transient analysis per CS-25.631. 1.8 kg bird at 180
+      KEAS impact velocity normal to rib 7 panel. Post-impact residual strength check
+      at 70% limit load per CS-25.302. EXPLICIT solver, Lagrange bird model (SPH particles).
+      Analysis covers 0 to 50 ms post-impact. Certification gap per AR-2025-067.
+    filename_base: AERO_WNGRB7_V02I02_EXPLICIT
+    created_by: m.jones
+    created_on: '2025-11-20 14:00:00'
+    solver_type: EXPLICIT
+    analysis_types:
+    - CRASH
+    - QUASI-STATIC
+    status: WIP
+    notes:
+    - Bird strike analysis initiated following airworthiness gap review AR-2025-067.
+    - Run 01 aborted - 3h wall clock limit on HPC-STD. Only reached t=28ms of 50ms
+      required.
+    - Run 02 resubmitted to HPC-PRIO with reduced output frequency and coarser bird
+      model mesh.
+    promoted_at: ''
+    runs:
+    - id: 1
+      name: Run 01
+      date: '2025-11-21 09:00:00'
+      status: aborted
+      created_by: m.jones
+      comments: 'Job aborted - reached 3-hour wall clock limit on HPC-STD partition.
+
+        Simulation reached t=28ms of 50ms required (56% complete).
+
+        Peak contact force at t=12ms: 185 kN (bird deceleration phase).
+
+        Action: reduce output interval 0.1ms -> 0.5ms, increase bird mesh 5mm -> 8mm.
+
+        Resubmit to HPC-PRIO partition for priority access.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+    - id: 2
+      name: Run 02
+      date: '2025-11-22 08:30:00'
+      status: WIP
+      created_by: m.jones
+      comments: 'Resubmitted with 0.5ms output interval and 8mm bird model mesh.
+
+        Submitted to HPC-PRIO partition - priority allocation confirmed.
+
+        Estimated runtime 4 hours. Monitoring via 90_Scripts/hpc_monitor.py.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false

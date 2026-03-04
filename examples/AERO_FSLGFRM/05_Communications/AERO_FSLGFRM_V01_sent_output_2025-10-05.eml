@@ -1,0 +1,44 @@
+From: J. Smith <j.smith@aero.com>
+To: M. Jones <m.jones@aero.com>, R. Patel <r.patel@aero.com>
+Subject: AERO Fuselage Frame V01 - FEA Results Summary
+Date: Sun, 05 Oct 2025 14:22:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-ID: <AERO.FSLGFRM.V01.20251005142200@aero.com>
+
+=================================================================
+FEA RESULTS SUMMARY
+=================================================================
+Project  : AERO
+Entity   : Fuselage Frame (FSLGFRM)
+Version  : V01 - Preliminary sizing model
+Date     : 2025-10-05
+Prepared : j.smith
+
+--- Source Files ---
+AERO_FSLGFRM_V01_assembly.step
+
+--- Reported Results ---
+
+I01 - IMPLICIT / LINEAR, NORMAL MODES  [PRODUCTION]
+Last Run   : 2025-09-24 17:45:00
+Description: Baseline linear static + normal modes. Coarse mesh, simplified BCs.
+Prod. Runs : Run 01, Run 02
+  Max displacement : 3.7 mm  (allowable 5.0 mm, margin 26%)
+  Max stress       : 242 MPa (allowable 310 MPa, margin 22%)
+  1st nat. freq.   : 42.1 Hz (above 40 Hz flutter threshold)
+
+=================================================================
+Notes:
+- Load at FS180 corrected in Run 02 per LM-2025-047. Results are valid.
+- Model reviewed and approved in DRB-2025-079 (2025-09-20).
+- Action item AI-STR-047: refine mesh at cutout region in V02.
+
+Please confirm receipt and advise if any additional load cases are
+required for the PDR submission.
+
+Regards,
+J. Smith
+Structural Analysis | AERO Programme
+=================================================================

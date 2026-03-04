@@ -2,6 +2,11 @@
 
 A desktop application for tracking Finite Element Analysis (FEA) project metadata. Built with Python and CustomTkinter.
 
+## Documentation
+
+- **[USER_GUIDE.md](USER_GUIDE.md)** — full user guide for colleagues: installation, core concepts, step-by-step walkthrough, feature reference, and status reference.
+- **[examples/](examples/)** — ready-made example session (`AERO_Examples.featrace`) with three fictitious entities to explore all features without creating anything from scratch.
+
 ## Overview
 
 FEA Trace organises simulation work into a structured hierarchy:

@@ -1,0 +1,265 @@
+schema_version: 2.8.0
+entity:
+  id: FSLGFRM
+  name: Fuselage Frame
+  project: AERO
+  owner_team: Structural Analysis
+  created_by: j.smith
+  created_on: '2025-09-10 08:30:00'
+versions:
+- id: V01
+  status: production
+  description: 'Preliminary sizing model to establish load paths and initial sizing
+    of frame cross-sections. Based on preliminary aerodynamic loads at 1.5g manoeuvre
+    envelope per load memo LM-2025-031. Mesh 8mm global. Three load cases: pull-up
+    1.5g, pushover -0.5g, lateral gust 0.3g per CS-25.341.'
+  created_by: j.smith
+  created_on: '2025-09-10 08:30:00'
+  notes:
+  - Initial version created for PDR load case assessment. Three load cases covered
+    - 1.5g pull-up, -0.5g pushover, and lateral gust per CS-25.341. Model reviewed
+    and approved in DRB-2025-061.
+  - Iteration I02 (buckling) deprecated - superseded by V02 I02 with corrected mesh
+    refinement per ES-1234 Rev B.
+  - '[Promoted to Production] on 2025-09-25 10:30:00 by j.smith - Runs: Run 01, Run
+    02'
+  - '[Sent Output] on 2025-10-05 14:22:00 by j.smith - To: m.jones@aero.com, r.patel@aero.com
+    - Subject: AERO Fuselage Frame V01 - FEA Results Summary'
+  communications:
+  - sent_at: '2025-10-05 14:22:00'
+    sent_by: j.smith
+    to: m.jones@aero.com, r.patel@aero.com
+    subject: AERO Fuselage Frame V01 - FEA Results Summary
+    body_summary: "=================================================================\n\
+      FEA RESULTS SUMMARY\n=================================================================\n\
+      Project  : AERO\nEntity   : Fuselage Frame (FSLGFRM)\nVersion  : V01 - Preliminary\
+      \ sizing model\nDate     : 2025-10-05\nPrepared : j.smith\n\n--- Source Files\
+      \ ---\nAERO_FSLGFRM_V01_assembly.step\n\n--- Reported Results ---\n\nI01 - IMPLICIT\
+      \ / LINEAR, NORMAL MODES  [PRODUCTION]\nLast Run   : 2025-09-24 17:45:00\nDescription:\
+      \ Baseline linear static + normal modes. Coarse mesh, simplified BCs.\nProd.\
+      \ Runs : Run 01, Run 02\n  Max displacement : 3.7 mm  (allowable 5.0 mm, margin\
+      \ 26%)\n  Max stress       : 242 MPa (allowable 310 MPa, margin 22%)\n  1st\
+      \ nat. freq.   : 42.1 Hz (above 40 Hz flutter threshold)\n================================================================="
+    eml_filenames:
+    - AERO_FSLGFRM_V01_sent_output_2025-10-05.eml
+    run_refs:
+    - V01I01 Run 01
+    - V01I01 Run 02
+  source_components: []
+  iterations:
+  - id: I01
+    description: 'Baseline linear static analysis plus normal modes check. Coarse
+      8mm global mesh, refined to 3mm at frame attachment points and stringer cutouts.
+      Simplified BCs at STA 1740 fuselage attachment ring. Three load cases: pull-up
+      1.5g, pushover -0.5g, lateral gust 0.3g. Normal modes extracted to verify first
+      frequency above 40 Hz flutter threshold. Results reviewed against hand calc
+      per ES-STR-012.'
+    filename_base: AERO_FSLGFRM_V01I01_IMPLICIT
+    created_by: j.smith
+    created_on: '2025-09-10 08:30:00'
+    solver_type: IMPLICIT
+    analysis_types:
+    - LINEAR
+    - NORMAL MODES
+    status: production
+    notes:
+    - Run 01 submitted to cluster at 09:15 on 2025-09-10. Wall clock time 22 min.
+    - Max displacement 3.2 mm at stringer cutout - passes 5.0 mm allowable per ES-STR-012
+      (margin 36%).
+    - First natural frequency 42.3 Hz - above 40 Hz flutter threshold. Acceptable.
+    - Load magnitude at FS180 corrected in Run 02 per LM-2025-047 (12.4 kN to 14.1
+      kN). Stress recalculated.
+    - Results reviewed in DRB-2025-079 on 2025-09-20. Action item AI-STR-047 raised
+      to refine mesh at cutout region in V02.
+    - '[Promoted to Production] on 2025-09-25 10:30:00 by j.smith - Runs: Run 01,
+      Run 02'
+    promoted_at: '2025-09-25 10:30:00'
+    runs:
+    - id: 1
+      name: Run 01
+      date: '2025-09-10 09:15:00'
+      status: converged
+      created_by: j.smith
+      comments: 'Load cases: 1.5g pull-up, -0.5g pushover, 0.3g lateral gust.
+
+        Mesh: 8mm global, 3mm at attachment BCs and stringer cutouts.
+
+        Max displacement: 3.2 mm at FS180 cutout (allowable 5.0 mm, margin 36%).
+
+        Max stress: 218 MPa at stringer cutout (allowable 310 MPa, margin 30%).
+
+        First natural frequency: 42.3 Hz (above 40 Hz threshold).
+
+        Hand calc correlation: within 7% for critical load path forces.
+
+        Note: load at FS180 needs verification vs LM-2025-047 - corrected in Run 02.'
+      artifacts:
+        input: []
+        output: []
+        is_production: true
+    - id: 2
+      name: Run 02
+      date: '2025-09-24 17:45:00'
+      status: converged
+      created_by: j.smith
+      comments: 'Load correction: FS180 force updated 12.4 kN -> 14.1 kN per LM-2025-047.
+
+        Max displacement: 3.7 mm (within 5.0 mm allowable, margin 26%).
+
+        Max stress: 242 MPa at stringer cutout (allowable 310 MPa, margin 22%).
+
+        Normal modes unchanged - first frequency 42.1 Hz (shift <1 Hz).
+
+        Hand calc correlation: 5% on critical path forces, 9% on peak stress.
+
+        Conclusion: model behaviour well understood. Ready for Production.'
+      artifacts:
+        input: []
+        output: []
+        is_production: true
+  - id: I02
+    description: Buckling analysis of frame web panel under combined compression and
+      shear (-0.5g pushover load case). Compression-only contact supports at flange
+      edges. Geometric imperfection per ES-1234 Rev A (1% of minimum web dimension).
+      First 6 buckling eigenmodes extracted.
+    filename_base: AERO_FSLGFRM_V01I02_IMPLICIT
+    created_by: j.smith
+    created_on: '2025-09-15 14:00:00'
+    solver_type: IMPLICIT
+    analysis_types:
+    - BUCKLING
+    status: deprecated
+    notes:
+    - Run 01 showed buckling load factor 1.32 - marginal against target of 1.5. Mesh
+      refinement requested.
+    - Run 02 with refined mesh gave load factor 1.41 - improved but below 1.5 target.
+      Geometry change required.
+    - Deprecated - superseded by V02 I02 with fully refined mesh and corrected imperfection
+      per ES-1234 Rev B.
+    promoted_at: ''
+    runs:
+    - id: 1
+      name: Run 01
+      date: '2025-09-15 15:00:00'
+      status: converged
+      created_by: j.smith
+      comments: 'Buckling - first run. Global 5mm mesh, 2mm at web panel.
+
+        Buckling load factor LF1: 1.32 - marginal against target >=1.5 (ES-STR-015).
+
+        First mode: symmetric web panel buckling at FS180 cutout.
+
+        LF2 (asymmetric): 1.89 - not critical.
+
+        Action: refine mesh at cutout corners - suspect artificial stiffness.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+    - id: 2
+      name: Run 02
+      date: '2025-09-22 11:00:00'
+      status: converged
+      created_by: j.smith
+      comments: 'Mesh refined at cutout corners to 1.5mm. Imperfection per ES-1234.
+
+        Buckling LF1: 1.41 (vs 1.32 Run 01 - improvement but still below 1.5).
+
+        LF2: 1.74 - not critical.
+
+        Conclusion: web panel geometry change required.
+
+        Recommendation: add rib stiffener at FS180 cutout edge (carried to V02 per
+        ECO-2025-312).'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+- id: V02
+  status: WIP
+  description: Post-PDR model revision per action item AI-STR-047. Updated aerodynamic
+    loads from LM-2025-089 (1.8g manoeuvre), revised frame geometry per drawing REV
+    B (web thickness 2.0mm to 2.5mm, rib stiffener added at FS180 per ECO-2025-312),
+    global mesh refinement to 4mm with 1.5mm at cutouts and stiffener run-outs.
+  created_by: j.smith
+  created_on: '2025-10-02 09:00:00'
+  notes:
+  - Version created following PDR action item AI-STR-047. REV B geometry imported
+    from design STEP release 2025-10-01.
+  - All BC and load definitions reviewed and updated per ICD-STR-2025-003.
+  communications: []
+  source_components: []
+  iterations:
+  - id: I01
+    description: Linear static and buckling check with updated 1.8g loads and REV
+      B frame geometry. Global 4mm mesh, 1.5mm at cutouts, flange radii, and stiffener
+      run-outs. BCs updated per ICD-STR-2025-003. Four load cases including new 1.8g
+      pull-up combined with 50% lateral.
+    filename_base: AERO_FSLGFRM_V02I01_IMPLICIT
+    created_by: j.smith
+    created_on: '2025-10-02 09:00:00'
+    solver_type: IMPLICIT
+    analysis_types:
+    - LINEAR
+    - BUCKLING
+    status: WIP
+    notes:
+    - Run 01 complete. Stress passes all load cases - buckling LF 1.67 above target.
+      Hot-spot at stiffener run-out (301 MPa) needs investigation.
+    - Run 02 in progress - adding ground load cases per LM-2025-092 and local mesh
+      refinement.
+    promoted_at: ''
+    runs:
+    - id: 1
+      name: Run 01
+      date: '2025-10-05 08:45:00'
+      status: converged
+      created_by: j.smith
+      comments: 'REV B geometry + LM-2025-089 loads.
+
+        Max stress: 285 MPa at FS180 cutout (allowable 310 MPa, margin 8%). Tight
+        - monitor.
+
+        Buckling LF1: 1.67 (exceeds 1.5 target - web stiffener effective).
+
+        Displacement: 2.9 mm max (improved vs V01 R02 at 3.7 mm).
+
+        Local hot-spot at stiffener run-out: 301 MPa - close to allowable. Added to
+        R02 scope.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+    - id: 2
+      name: Run 02
+      date: '2025-10-12 14:00:00'
+      status: WIP
+      created_by: j.smith
+      comments: 'Adding ground load cases per LM-2025-092 (taxi bump 2.0g, ground
+        turn 0.5g).
+
+        Mesh locally refined at stiffener run-out to 0.8mm.
+
+        Currently running on cluster - ETA 3 hours.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+  - id: I02
+    description: Combined buckling and fatigue at web cutouts. Fully refined mesh
+      at cutout corners (1mm). Geometric imperfection per ES-1234 Rev B (0.5% of minimum
+      web dimension). Fatigue spectrum from MP-2025-A (60,000 cycle target). S-N curves
+      for 2024-T3 aluminium per MMPDS-12.
+    filename_base: AERO_FSLGFRM_V02I02_IMPLICIT
+    created_by: m.jones
+    created_on: '2025-10-15 10:00:00'
+    solver_type: IMPLICIT
+    analysis_types:
+    - BUCKLING
+    - FATIGUE
+    status: WIP
+    notes:
+    - Iteration created to address V01 I02 shortcomings. No runs yet - mesh quality
+      check in progress.
+    promoted_at: ''
+    runs: []

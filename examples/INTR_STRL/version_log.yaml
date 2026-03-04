@@ -1,0 +1,150 @@
+schema_version: 2.8.0
+entity:
+  id: STRL
+  name: Seat Rail
+  project: INTR
+  owner_team: Cabin Structures
+  created_by: r.patel
+  created_on: '2025-11-01 10:00:00'
+versions:
+- id: V01
+  status: WIP
+  description: Static strength model for seat rail and floor attachment under CS-25.561.
+    Covers 16g forward crash load and 10g downward emergency landing load. Fastener
+    pattern per drawing DR-CABIN-2025-118 REV A. Floor sub-structure modelled as spring
+    stiffness matrix from floor panel model KFC-2025-B.
+  created_by: r.patel
+  created_on: '2025-11-01 10:00:00'
+  notes:
+  - 'V01 created for initial CS-25.561 certification assessment. Two mandatory load
+    cases: 16g forward crash and 10g downward.'
+  - Source geometry imported from interior design STEP release 2025-10-28.
+  communications: []
+  source_components: []
+  iterations:
+  - id: I01
+    description: 16g forward crash load case per CS-25.561(b). Rigid body elements
+      connecting seat track to attachment fittings. Run 01 without friction contact
+      (conservative upper bound). Run 02 adds friction (mu=0.2, penalty formulation).
+      Run 03 updates floor stiffness to revised KFC-2025-B Rev 2. Half-symmetry model,
+      single seat track.
+    filename_base: INTR_STRL_V01I01_IMPLICIT
+    created_by: r.patel
+    created_on: '2025-11-01 10:00:00'
+    solver_type: IMPLICIT
+    analysis_types:
+    - LINEAR
+    status: WIP
+    notes:
+    - Run 01 (no friction) gives conservative bolt forces - all within allowable with
+      14.7% margin.
+    - Run 02 with friction shows 12.5% reduction in peak bolt force. Better load redistribution.
+      Results sent to certification team 2025-11-10.
+    - Run 03 updating floor stiffness to KFC-2025-B Rev 2 (10% stiffer) - currently
+      running.
+    promoted_at: ''
+    runs:
+    - id: 1
+      name: Run 01
+      date: '2025-11-03 09:30:00'
+      status: converged
+      created_by: r.patel
+      comments: '16g forward load, no friction contact (conservative upper bound).
+
+        Max bolt force: 12.8 kN (allowable 15.0 kN, margin 14.7%).
+
+        Max seat track displacement: 1.8 mm - acceptable per DO-160G.
+
+        Floor attachment stress: 198 MPa (allowable 240 MPa).
+
+        Hand calc correlation: 8% - acceptable.
+
+        Action: add friction contact in Run 02 for realistic bolt load redistribution.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+    - id: 2
+      name: Run 02
+      date: '2025-11-08 14:00:00'
+      status: converged
+      created_by: r.patel
+      comments: 'Friction contact added (mu=0.2, penalty formulation).
+
+        Max bolt force reduced to 11.2 kN (vs 12.8 kN, 12.5% reduction from load sharing).
+
+        Margin improved to 25.3%. Better load redistribution observed.
+
+        Convergence: 18 increments, no bisection - good contact behaviour.
+
+        Seat track displacement reduced to 1.6 mm.
+
+        Results sent to certification team 2025-11-10 for preliminary review.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+    - id: 3
+      name: Run 03
+      date: '2025-11-15 16:00:00'
+      status: WIP
+      created_by: r.patel
+      comments: 'Floor stiffness updated to KFC-2025-B Rev 2 (10% stiffer, per floor
+        panel update 2025-11-12).
+
+        Expect small improvement in bolt loads. Submitted to cluster at 16:00 - running.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+  - id: I02
+    description: 10g downward emergency landing load case per CS-25.561(d). Floor
+      structure as flexible spring support from KFC-2025-B. Hertz contact with gap
+      elements between seat track and floor fitting. Load applied as 10g inertia relief
+      on seat assembly mass (18.4 kg per pair per SDS-SEAT-2025-003). Target max bolt
+      force <15.0 kN.
+    filename_base: INTR_STRL_V01I02_IMPLICIT
+    created_by: r.patel
+    created_on: '2025-11-05 09:00:00'
+    solver_type: IMPLICIT
+    analysis_types:
+    - LINEAR
+    status: WIP
+    notes:
+    - Run 01 diverged - contact non-convergence (chattering at floor fitting). Reduce
+      increment size and enable AUTO STAB for Run 02.
+    - Run 02 resubmitted with corrected contact normals and stabilisation - currently
+      running.
+    promoted_at: ''
+    runs:
+    - id: 1
+      name: Run 01
+      date: '2025-11-06 10:00:00'
+      status: diverged
+      created_by: r.patel
+      comments: "Contact non-convergence - bisection limit at increment 12 (load factor\
+        \ 0.48).\nError: chattering contact at floor fitting - alternating in/out\
+        \ of contact.\nDiagnosis: initial increment too large; mesh incompatibility\
+        \ at contact interface.\nAction items:\n  1. Reduce initial increment from\
+        \ 0.1 to 0.05.\n  2. Enable AUTO STAB with stabilisation factor 1e-4.\n  3.\
+        \ Review and correct contact surface normals on floor fitting mesh.\n  4.\
+        \ Increase contact penalty stiffness by factor 2."
+      artifacts:
+        input: []
+        output: []
+        is_production: false
+    - id: 2
+      name: Run 02
+      date: '2025-11-12 09:00:00'
+      status: WIP
+      created_by: r.patel
+      comments: 'Increment reduced to 0.05, AUTO STAB enabled (factor 1e-4).
+
+        Contact surface normals corrected on floor fitting (6 elements had inverted
+        normals).
+
+        Penalty stiffness increased x2. Currently running - ETA 45 minutes.'
+      artifacts:
+        input: []
+        output: []
+        is_production: false
