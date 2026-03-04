@@ -560,6 +560,103 @@ Format: **Feature name** — description. `Files touched.` _(date)_
 
 ---
 
+## Planned Improvements (v2.x)
+
+Phased plan from colleague feedback, ordered easiest → hardest.
+
+---
+
+### Phase 1 — Quick Fixes & Cosmetic (no logic changes)
+
+- **Mousehover hints for copy buttons** — Add `add_hint()` tooltips (600 ms, from `theme.py`) to the
+  filename-copy and path-copy icon buttons in `RunFrame`, matching the style of existing field-label
+  hints. Hint text: `"Copy filename"` / `"Copy full path"`.
+  `app/gui/frames/run_frame.py`
+
+- **"Audit Log" → "Log" label; add missing label on VersionFrame** — Two sub-fixes: (1) rename every
+  `"Audit Log"` section header to `"Log"` in `VersionFrame`, `IterationFrame`, `EditVersionDialog`,
+  and `EditIterationDialog`; (2) `VersionFrame` currently shows the audit `ttk.Treeview` without a
+  visible section label — add one using the same `ctk.CTkLabel` pattern used in `IterationFrame`.
+  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
+  `app/gui/dialogs/edit_version_dialog.py`, `app/gui/dialogs/edit_iteration_dialog.py`
+
+- **Auto-create `05_Communications` folder on entity creation** — `FEAProject.create()` currently
+  `mkdir`s `01_Source`, `02_Models`, and `03_Runs`. Add `COMMUNICATIONS_FOLDER` (`05_Communications`)
+  to that sequence so the folder exists from day one, consistent with the other standard folders.
+  `app/core/models.py`
+
+---
+
+### Phase 2 — UI Enhancements
+
+- **Audit log table fixed at 5 rows + headers, always visible with scrollbar** — Change the
+  `height=` parameter of the audit `ttk.Treeview` in `VersionFrame` and `IterationFrame` from the
+  dynamic 7-row default to a fixed `height=5`. Show the vertical scrollbar unconditionally (remove
+  the current "only when > 7 entries" guard). Apply the same change to `EditVersionDialog` and
+  `EditIterationDialog`.
+  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
+  `app/gui/dialogs/edit_version_dialog.py`, `app/gui/dialogs/edit_iteration_dialog.py`
+
+- **Communications table searchbox** — Add a real-time `"Search:"` bar (label + `CTkEntry` + ✕
+  clear button) above the communications `ttk.Treeview` in `EntityFrame`, identical in style and
+  behaviour to the search bars already present on the Versions / Iterations / Runs summary tables.
+  `_search_comms_var: ctk.StringVar` drives `_refresh_comms_table()`; combined AND with active
+  column filters.
+  `app/gui/frames/entity_frame.py`
+
+- **Mark Deprecated always requires a reason** — Currently only reverting from DEPRECATED → WIP
+  requires a reason; the initial WIP → DEPRECATED transition is silent. Open `RevertReasonDialog`
+  (with `entity_type` set appropriately) before executing the deprecation for both `IterationFrame`
+  and `VersionFrame`. The reason is appended as a `[Deprecated] on {date} by {user} — {reason}`
+  system note to `iteration.notes` / `version.notes`. `parse_audit_note` and the audit tables
+  updated to recognise the new `[Deprecated` prefix.
+  `app/gui/frames/version_frame.py`, `app/gui/frames/iteration_frame.py`,
+  `app/gui/dialogs/revert_reason_dialog.py`, `app/gui/theme.py`,
+  `app/core/models.py`
+
+---
+
+### Phase 3 — Cascade Logic
+
+- **Run WIP revert cascades to parent Iteration (and Version) WIP** — When a run's status is
+  reverted to WIP via `RunFrame._on_revert_to_wip()`, check whether its parent iteration is
+  `PRODUCTION`. If so, force-revert the iteration to WIP (clearing `promoted_at` and all
+  `is_production` flags) after capturing a mandatory reason via `RevertReasonDialog`. Then check
+  whether the parent version is `PRODUCTION`; if so, also revert it to WIP (second
+  `RevertReasonDialog` prompt). The cascade appends the appropriate `[Reverted to WIP]` audit notes
+  to both `iteration.notes` and `version.notes`. `FEAProject` gains a helper
+  `revert_iteration_to_wip(version_id, iter_id, reason)` and
+  `update_version_status(version_id, VersionStatus.WIP, reason)` extended to accept an optional
+  reason for system-note generation. After the cascade, `MainWindow` reloads the current frame and
+  refreshes the sidebar.
+  `app/core/models.py`, `app/gui/frames/run_frame.py`, `app/gui/main_window.py`,
+  `app/gui/dialogs/revert_reason_dialog.py`
+
+---
+
+### Phase 4 — Layout & Resizing
+
+- **Minimum table height (5 rows + headers) for small screens** — All summary `ttk.Treeview` tables
+  (Versions in `EntityFrame`, Iterations in `VersionFrame`, Runs in `IterationFrame`) must display at
+  least 5 data rows + the header row before any clipping occurs. Preferred approach: **Option B —
+  per-table scroll** (each table already has a vertical scrollbar; lock `height=5` as the minimum and
+  allow the table to grow with available space via `rowconfigure weight`). Option A (main-frame
+  scrollbar on the content panel) is the fallback if per-table sizing proves insufficient on very
+  small displays. _Decision required before implementation._
+  `app/gui/frames/entity_frame.py`, `app/gui/frames/version_frame.py`,
+  `app/gui/frames/iteration_frame.py`
+
+- **Subframes vertical resizing** — Replace the static stacked layout inside content frames with
+  `tk.PanedWindow` (orient=`"vertical"`) sashes so the user can drag to resize the metadata panel
+  vs. the summary table, matching the resizable panel behaviour already present in
+  `ManagePresetsDialog`. Target frames: `EntityFrame` (metadata ↕ versions table ↕ communications),
+  `VersionFrame` (metadata ↕ iterations table ↕ audit log), `IterationFrame` (metadata ↕ runs table
+  ↕ audit log). Sash positions persist in `AppSettings` per frame.
+  `app/gui/frames/entity_frame.py`, `app/gui/frames/version_frame.py`,
+  `app/gui/frames/iteration_frame.py`, `app/core/settings.py`
+
+---
+
 ## Not Implemented
 
 <!-- Sorted easiest → hardest. Format: **Feature** — description. -->
