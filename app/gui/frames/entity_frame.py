@@ -75,6 +75,7 @@ class EntityFrame(ctk.CTkFrame):
         self._comms_sort_col:    str | None           = None
         self._comms_sort_reverse: bool                = False
         self._comms_col_filters: dict[str, set[str]]  = {}
+        self._search_comms_var:  ctk.StringVar        = ctk.StringVar()
         self._build()
 
     # ------------------------------------------------------------------
@@ -248,12 +249,27 @@ class EntityFrame(ctk.CTkFrame):
         section = ctk.CTkFrame(self, fg_color="transparent")
         section.grid(row=4, column=0, sticky="nsew", padx=24, pady=(0, 8))
         section.columnconfigure(0, weight=1)
-        section.rowconfigure(1, weight=1)
+        section.rowconfigure(2, weight=1)
 
         ctk.CTkLabel(
             section, text="Communications",
             font=ctk.CTkFont(size=15, weight="bold"), anchor="w",
         ).grid(row=0, column=0, sticky="w", pady=(0, 6))
+
+        search_row = ctk.CTkFrame(section, fg_color="transparent")
+        search_row.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 4))
+        search_row.columnconfigure(1, weight=1)
+        ctk.CTkLabel(search_row, text="Search:", width=52,
+                     font=ctk.CTkFont(size=12)).grid(row=0, column=0, sticky="w")
+        ctk.CTkEntry(
+            search_row, textvariable=self._search_comms_var,
+            placeholder_text="Filter all columns…", height=28, font=ctk.CTkFont(size=12),
+        ).grid(row=0, column=1, sticky="ew", padx=(4, 4))
+        ctk.CTkButton(
+            search_row, text="✕", width=28, height=28,
+            font=ctk.CTkFont(size=12),
+            command=lambda: self._search_comms_var.set(""),
+        ).grid(row=0, column=2)
 
         cols = ("sent_at", "sent_by", "version", "to", "subject", "eml")
         self._comms_col_order = cols
@@ -285,8 +301,10 @@ class EntityFrame(ctk.CTkFrame):
         self._comms_tree.bind("<Double-1>", self._on_comms_double_click)
         self._comms_tree.bind("<Button-3>", self._on_comms_heading_right_click)
 
-        self._comms_tree.grid(row=1, column=0, sticky="nsew")
-        self._comms_sb.grid(row=1, column=1, sticky="ns")
+        self._comms_tree.grid(row=2, column=0, sticky="nsew")
+        self._comms_sb.grid(row=2, column=1, sticky="ns")
+
+        self._search_comms_var.trace_add("write", lambda *_: self._refresh_comms())
 
         self._comms_section = section
         self._comms_section.grid_remove()   # hidden until there are communications
@@ -362,6 +380,7 @@ class EntityFrame(ctk.CTkFrame):
         self._comms_sort_col     = None
         self._comms_sort_reverse = False
         self._comms_col_filters  = {}
+        self._search_comms_var.set("")
         apply_table_style("Entity.Treeview")
         self._populate_table()
         self._populate_comms()
@@ -408,6 +427,10 @@ class EntityFrame(ctk.CTkFrame):
 
     def _refresh_comms(self) -> None:
         rows = self._comms_all_rows
+        query = self._search_comms_var.get().strip().lower()
+        if query:
+            rows = [r for r in rows
+                    if any(query in str(v).lower() for v in r["values"])]
         for col, allowed in self._comms_col_filters.items():
             if allowed:
                 idx = self._comms_col_order.index(col)
@@ -436,7 +459,7 @@ class EntityFrame(ctk.CTkFrame):
         if self._comms_all_rows:
             autofit_tree_columns(self._comms_tree)
             if len(rows) > 5:
-                self._comms_sb.grid(row=1, column=1, sticky="ns")
+                self._comms_sb.grid(row=2, column=1, sticky="ns")
             else:
                 self._comms_sb.grid_remove()
             self.rowconfigure(4, weight=1)

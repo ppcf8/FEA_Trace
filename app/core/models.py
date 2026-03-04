@@ -309,7 +309,8 @@ class FEAProject:
         """Returns {entity_path}/01_Source/{version_id}/ without creating it."""
         return self._path / SOURCE_FOLDER / version_id
 
-    def update_version_status(self, version_id, new_status, revert_reason=None):
+    def update_version_status(self, version_id, new_status,
+                              revert_reason=None, deprecation_reason=None):
         v = self._get_version(version_id)
         ok, reason = validate_status_transition(v.status, new_status)
         if not ok: raise StatusTransitionError(reason)
@@ -325,10 +326,16 @@ class FEAProject:
             v.notes.append(
                 f"[Reverted to WIP] from {v.status.value} on {_now()} "
                 f"by {_current_user()} — {revert_reason}")
+        if new_status == VersionStatus.DEPRECATED:
+            if not deprecation_reason:
+                raise ValidationError("A reason is required when deprecating.")
+            v.notes.append(
+                f"[Deprecated] on {_now()} by {_current_user()} — {deprecation_reason}")
         v.status = new_status
         self._write()
 
-    def update_iteration_status(self, version_id, iter_id, target, revert_reason=None):
+    def update_iteration_status(self, version_id, iter_id, target,
+                                revert_reason=None, deprecation_reason=None):
         v = self._get_version(version_id)
         i = self._get_iteration(v, iter_id)
         ok, reason = validate_status_transition(i.status, target)
@@ -343,6 +350,11 @@ class FEAProject:
                 i.promoted_at = ""
                 for run in i.runs:
                     run.artifacts.is_production = False
+        if target == IterationStatus.DEPRECATED:
+            if not deprecation_reason:
+                raise ValidationError("A reason is required when deprecating.")
+            i.notes.append(
+                f"[Deprecated] on {_now()} by {_current_user()} — {deprecation_reason}")
         i.status = target
         self._write()
 

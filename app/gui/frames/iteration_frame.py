@@ -265,7 +265,7 @@ class IterationFrame(ctk.CTkFrame):
         self._audit_tree = ttk.Treeview(
             self._audit_panel, style="IterAudit.Treeview",
             columns=("event", "date", "by", "runs", "details"),
-            show="headings", height=7,
+            show="headings", height=5,
         )
         self._audit_tree.heading("event",   text="Event",   anchor="center")
         self._audit_tree.heading("date",    text="Date",    anchor="w")
@@ -277,7 +277,7 @@ class IterationFrame(ctk.CTkFrame):
         self._audit_tree.column("by",      width=90,  minwidth=60,  stretch=False, anchor="w")
         self._audit_tree.column("runs",    width=60,  minwidth=40,  stretch=False, anchor="w")
         self._audit_tree.column("details", width=200, minwidth=80,  stretch=True,  anchor="w")
-        self._audit_tree.grid(row=0, column=0, sticky="ew")
+        self._audit_tree.grid(row=0, column=0, sticky="nsew")
 
         self._audit_sb = make_scrollbar(self._audit_panel, "vertical", self._audit_tree.yview)
         self._audit_tree.configure(yscrollcommand=self._audit_sb.set)
@@ -468,10 +468,7 @@ class IterationFrame(ctk.CTkFrame):
             for note in reversed(i.notes):
                 self._audit_tree.insert("", "end", values=parse_audit_note_extended(note))
             autofit_tree_columns(self._audit_tree)
-            if len(i.notes) > 7:
-                self._audit_sb.grid(row=0, column=1, sticky="ns")
-            else:
-                self._audit_sb.grid_remove()
+            self._audit_sb.grid(row=0, column=1, sticky="ns")
             self._notes_label.grid_remove()
             self._audit_panel.grid(row=1, column=0, sticky="ew")
         else:
@@ -551,6 +548,7 @@ class IterationFrame(ctk.CTkFrame):
             return
 
         revert_reason = None
+        deprecation_reason = None
         if target == IterationStatus.WIP:
             from app.gui.dialogs.revert_reason_dialog import RevertReasonDialog
             dlg = RevertReasonDialog(self._window, self._iter_id, "Iteration")
@@ -558,11 +556,20 @@ class IterationFrame(ctk.CTkFrame):
             if dlg.result is None:
                 return
             revert_reason = dlg.result
+        elif target == IterationStatus.DEPRECATED:
+            from app.gui.dialogs.revert_reason_dialog import RevertReasonDialog
+            dlg = RevertReasonDialog(self._window, self._iter_id,
+                                     entity_type="Iteration", mode="deprecate")
+            self._window.wait_window(dlg)
+            if dlg.result is None:
+                return
+            deprecation_reason = dlg.result
 
         try:
             self._project.update_iteration_status(
                 self._version_id, self._iter_id, target,
                 revert_reason=revert_reason,
+                deprecation_reason=deprecation_reason,
             )
         except Exception as exc:
             self._show_error("Status Change Failed", str(exc))
