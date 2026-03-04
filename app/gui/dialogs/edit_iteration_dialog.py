@@ -8,6 +8,7 @@ import tkinter.ttk as ttk
 import customtkinter as ctk
 
 from schema import SolverType, IterationRecord
+from app.core.settings import get_settings_manager
 from app.gui.theme import (apply_table_style, make_scrollbar,
                            AUDIT_NOTE_PREFIXES, parse_audit_note)
 
@@ -21,12 +22,6 @@ class EditIterationDialog(ctk.CTkToplevel):
     result: (solver_type: SolverType, analysis_types: list[str],
              description: str, created_by: str) | None
     """
-
-    _ANALYSIS_OPTIONS = [
-        "NLSTAT", "LINEAR", "NORMAL MODES", "BUCKLING",
-        "FATIGUE", "FREQ RESPONSE", "TRANSIENT",
-        "CRASH", "QUASI-STATIC", "TOPOLOGY OPT",
-    ]
 
     def __init__(self, parent, iteration: IterationRecord, has_runs: bool):
         super().__init__(parent)
@@ -101,7 +96,10 @@ class EditIterationDialog(ctk.CTkToplevel):
         checks = ctk.CTkFrame(form, fg_color="transparent")
         checks.grid(row=1, column=1, pady=(8, 0), sticky="w")
 
-        for idx, atype in enumerate(self._ANALYSIS_OPTIONS):
+        preset_types = get_settings_manager().get_analysis_types()
+        extra = [t for t in self._iteration.analysis_types if t not in preset_types]
+        analysis_options = preset_types + extra
+        for idx, atype in enumerate(analysis_options):
             var = ctk.BooleanVar()
             self._analysis_vars[atype] = var
             ctk.CTkCheckBox(

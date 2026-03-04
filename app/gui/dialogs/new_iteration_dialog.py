@@ -9,6 +9,7 @@ import customtkinter as ctk
 from app.gui.hints import NEW_ITERATION_SUBTITLE
 
 from schema import SolverType
+from app.core.settings import get_settings_manager
 
 
 class NewIterationDialog(ctk.CTkToplevel):
@@ -16,12 +17,6 @@ class NewIterationDialog(ctk.CTkToplevel):
     result: (solver_type: SolverType, analysis_types: list[str],
              description: str, created_by: str) | None
     """
-
-    _ANALYSIS_OPTIONS = [
-        "NLSTAT", "LINEAR", "NORMAL MODES", "BUCKLING",
-        "FATIGUE", "FREQ RESPONSE", "TRANSIENT",
-        "CRASH", "QUASI-STATIC", "TOPOLOGY OPT",
-    ]
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -85,7 +80,8 @@ class NewIterationDialog(ctk.CTkToplevel):
         checks = ctk.CTkFrame(form, fg_color="transparent")
         checks.grid(row=1, column=1, pady=(8, 0), sticky="w")
 
-        for idx, atype in enumerate(self._ANALYSIS_OPTIONS):
+        analysis_options = get_settings_manager().get_analysis_types()
+        for idx, atype in enumerate(analysis_options):
             var = ctk.BooleanVar()
             self._analysis_vars[atype] = var
             ctk.CTkCheckBox(

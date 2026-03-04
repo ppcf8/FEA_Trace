@@ -11,7 +11,7 @@ from tkinter import filedialog, messagebox, ttk
 import customtkinter as ctk
 
 from app.core.settings import get_settings_manager
-from app.gui.theme import apply_table_style
+from app.gui.theme import apply_table_style, make_scrollbar
 
 
 class ManagePresetsDialog(ctk.CTkToplevel):
@@ -27,12 +27,16 @@ class ManagePresetsDialog(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Manage Presets")
-        self.geometry("680x420")
+        self.geometry("680x580")
         self.resizable(True, True)
         self.grab_set()
 
         self._presets: dict[str, list[dict[str, str]]] = {}
         self._selected_code: str = ""
+        self._analysis_types: list[str] = []
+        self._content: ctk.CTkFrame | None = None
+        self._top_minsize: int = 280
+        self._drag_y: int = 0
 
         self._build()
         self._load_from_manager()
@@ -51,30 +55,50 @@ class ManagePresetsDialog(ctk.CTkToplevel):
             font=ctk.CTkFont(size=18, weight="bold"),
         ).grid(row=0, column=0, padx=20, pady=(16, 8), sticky="w")
 
-        # Row 1 — two-panel body
-        body = ctk.CTkFrame(self, fg_color="transparent")
-        body.grid(row=1, column=0, padx=20, pady=0, sticky="nsew")
-        body.columnconfigure(0, weight=1)
-        body.columnconfigure(2, weight=2)
-        body.rowconfigure(1, weight=1)
+        # Row 1 — resizable content (custom CTK sash, no ttk.PanedWindow)
+        content = ctk.CTkFrame(self, fg_color="transparent")
+        content.grid(row=1, column=0, padx=20, pady=0, sticky="nsew")
+        content.columnconfigure(0, weight=1)
+        content.rowconfigure(0, weight=0, minsize=self._top_minsize)  # top: fixed
+        content.rowconfigure(1, weight=0)                              # sash
+        content.rowconfigure(2, weight=1)                              # bottom: fills rest
+        self._content = content
 
-        # --- Left panel ---
+        # ------------------------------------------------------------------ #
+        # TOP SECTION — Project Codes (left) + Entity Names (right)
+        # ------------------------------------------------------------------ #
+        top = ctk.CTkFrame(content, fg_color="transparent")
+        top.grid(row=0, column=0, sticky="nsew")
+        top.grid_propagate(False)  # size controlled by rowconfigure, not by children
+        top.columnconfigure(0, weight=1)
+        top.columnconfigure(2, weight=2)
+        top.rowconfigure(1, weight=1)
+
+        # --- Left: project codes ---
         self._project_header = ctk.CTkLabel(
-            body, text="Project Codes",
+            top, text="Project Codes",
             font=ctk.CTkFont(size=13, weight="bold"), anchor="w",
         )
         self._project_header.grid(row=0, column=0, sticky="w", pady=(0, 4))
 
+        proj_wrap = ctk.CTkFrame(top, fg_color="transparent")
+        proj_wrap.grid(row=1, column=0, sticky="nsew")
+        proj_wrap.columnconfigure(0, weight=1)
+        proj_wrap.rowconfigure(0, weight=1)
+
         apply_table_style("Presets.Project.Treeview")
         self._project_tree = ttk.Treeview(
-            body, style="Presets.Project.Treeview",
+            proj_wrap, style="Presets.Project.Treeview",
             show="tree", selectmode="browse",
         )
-        self._project_tree.grid(row=1, column=0, sticky="nsew")
+        self._project_tree.grid(row=0, column=0, sticky="nsew")
+        proj_sb = make_scrollbar(proj_wrap, "vertical", self._project_tree.yview)
+        self._project_tree.configure(yscrollcommand=proj_sb.set)
+        proj_sb.grid(row=0, column=1, sticky="ns")
         self._project_tree.bind("<<TreeviewSelect>>", self._on_project_select)
         self._project_tree.bind("<Double-1>", lambda _e: self._edit_project())
 
-        proj_btn_row = ctk.CTkFrame(body, fg_color="transparent")
+        proj_btn_row = ctk.CTkFrame(top, fg_color="transparent")
         proj_btn_row.grid(row=2, column=0, sticky="ew", pady=(4, 0))
         ctk.CTkButton(
             proj_btn_row, text="+ Add", width=72,
@@ -94,29 +118,37 @@ class ManagePresetsDialog(ctk.CTkToplevel):
         ).pack(side="left")
 
         # --- Separator ---
-        sep = ctk.CTkFrame(body, width=1, fg_color=["gray70", "gray35"])
+        sep = ctk.CTkFrame(top, width=1, fg_color=["gray70", "gray35"])
         sep.grid(row=0, column=1, rowspan=3, sticky="ns", padx=12)
 
-        # --- Right panel ---
+        # --- Right: entity names ---
         self._name_header = ctk.CTkLabel(
-            body, text="Entity Names",
+            top, text="Entity Names",
             font=ctk.CTkFont(size=13, weight="bold"), anchor="w",
         )
         self._name_header.grid(row=0, column=2, sticky="w", pady=(0, 4))
 
+        name_wrap = ctk.CTkFrame(top, fg_color="transparent")
+        name_wrap.grid(row=1, column=2, sticky="nsew")
+        name_wrap.columnconfigure(0, weight=1)
+        name_wrap.rowconfigure(0, weight=1)
+
         apply_table_style("Presets.Name.Treeview")
         self._name_tree = ttk.Treeview(
-            body, style="Presets.Name.Treeview",
+            name_wrap, style="Presets.Name.Treeview",
             columns=("name", "id"), show="headings", selectmode="browse",
         )
         self._name_tree.heading("name", text="Entity Name")
         self._name_tree.heading("id",   text="Entity ID")
         self._name_tree.column("name", width=180, stretch=True)
         self._name_tree.column("id",   width=100, stretch=False)
-        self._name_tree.grid(row=1, column=2, sticky="nsew")
+        self._name_tree.grid(row=0, column=0, sticky="nsew")
+        name_sb = make_scrollbar(name_wrap, "vertical", self._name_tree.yview)
+        self._name_tree.configure(yscrollcommand=name_sb.set)
+        name_sb.grid(row=0, column=1, sticky="ns")
         self._name_tree.bind("<Double-1>", lambda _e: self._edit_name())
 
-        name_btn_row = ctk.CTkFrame(body, fg_color="transparent")
+        name_btn_row = ctk.CTkFrame(top, fg_color="transparent")
         name_btn_row.grid(row=2, column=2, sticky="ew", pady=(4, 0))
         ctk.CTkButton(
             name_btn_row, text="+ Add", width=72,
@@ -135,9 +167,80 @@ class ManagePresetsDialog(ctk.CTkToplevel):
             command=self._del_name,
         ).pack(side="left")
 
-        # Row 2 — action buttons
+        # ------------------------------------------------------------------ #
+        # SASH — custom CTK draggable divider
+        # ------------------------------------------------------------------ #
+        sash = ctk.CTkFrame(content, height=8, fg_color=["gray75", "gray30"])
+        sash.configure(cursor="sb_v_double_arrow")
+        sash.grid(row=1, column=0, sticky="ew", pady=(4, 4))
+        sash.bind("<Button-1>", self._on_sash_press)
+        sash.bind("<B1-Motion>", self._on_sash_drag)
+
+        # ------------------------------------------------------------------ #
+        # BOTTOM SECTION — Analysis Types
+        # ------------------------------------------------------------------ #
+        bottom = ctk.CTkFrame(content, fg_color="transparent")
+        bottom.grid(row=2, column=0, sticky="nsew")
+        bottom.grid_propagate(False)  # size controlled by remaining space, not by children
+        bottom.columnconfigure(0, weight=1)
+        bottom.rowconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            bottom, text="Analysis Types",
+            font=ctk.CTkFont(size=13, weight="bold"), anchor="w",
+        ).grid(row=0, column=0, sticky="w", pady=(0, 4))
+
+        anal_wrap = ctk.CTkFrame(bottom, fg_color="transparent")
+        anal_wrap.grid(row=1, column=0, sticky="nsew")
+        anal_wrap.columnconfigure(0, weight=1)
+        anal_wrap.rowconfigure(0, weight=1)
+
+        apply_table_style("Presets.Analysis.Treeview")
+        self._analysis_tree = ttk.Treeview(
+            anal_wrap, style="Presets.Analysis.Treeview",
+            columns=("type",), show="headings", selectmode="browse",
+        )
+        self._analysis_tree.heading("type", text="Analysis Type")
+        self._analysis_tree.column("type", width=300, stretch=True)
+        self._analysis_tree.grid(row=0, column=0, sticky="nsew")
+        anal_sb = make_scrollbar(anal_wrap, "vertical", self._analysis_tree.yview)
+        self._analysis_tree.configure(yscrollcommand=anal_sb.set)
+        anal_sb.grid(row=0, column=1, sticky="ns")
+
+        analysis_btn_row = ctk.CTkFrame(bottom, fg_color="transparent")
+        analysis_btn_row.grid(row=2, column=0, sticky="ew", pady=(4, 0))
+        ctk.CTkButton(
+            analysis_btn_row, text="+ Add", width=72,
+            command=self._add_analysis,
+        ).pack(side="left", padx=(0, 6))
+        ctk.CTkButton(
+            analysis_btn_row, text="✎ Edit", width=72,
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=self._edit_analysis,
+        ).pack(side="left", padx=(0, 6))
+        ctk.CTkButton(
+            analysis_btn_row, text="− Del", width=72,
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=self._del_analysis,
+        ).pack(side="left", padx=(0, 16))
+        ctk.CTkButton(
+            analysis_btn_row, text="↑ Up", width=72,
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=self._move_analysis_up,
+        ).pack(side="left", padx=(0, 6))
+        ctk.CTkButton(
+            analysis_btn_row, text="↓ Down", width=72,
+            fg_color="transparent", border_width=1,
+            text_color=["#1A1A1A", "#DCE4EE"],
+            command=self._move_analysis_down,
+        ).pack(side="left")
+
+        # Row 2 — footer
         footer = ctk.CTkFrame(self, fg_color="transparent")
-        footer.grid(row=2, column=0, padx=20, pady=(12, 16), sticky="ew")
+        footer.grid(row=2, column=0, padx=20, pady=(8, 16), sticky="ew")
         footer.columnconfigure(0, weight=1)
 
         ctk.CTkButton(
@@ -167,7 +270,25 @@ class ManagePresetsDialog(ctk.CTkToplevel):
     def _load_from_manager(self) -> None:
         mgr = get_settings_manager()
         self._presets = copy.deepcopy(mgr.settings.project_presets)
+        self._analysis_types = mgr.get_analysis_types()
         self._refresh_project_list()
+        self._refresh_analysis_list()
+
+    # ------------------------------------------------------------------
+    # Sash drag
+    # ------------------------------------------------------------------
+
+    def _on_sash_press(self, event) -> None:
+        self._drag_y = event.y_root
+
+    def _on_sash_drag(self, event) -> None:
+        dy = event.y_root - self._drag_y
+        self._drag_y = event.y_root
+        new_h = max(100, self._top_minsize + dy)
+        available = self._content.winfo_height()
+        new_h = min(new_h, available - 120)  # keep bottom section ≥ 120 px
+        self._top_minsize = new_h
+        self._content.rowconfigure(0, minsize=new_h)
 
     def _refresh_project_list(self, select_code: str = "") -> None:
         self._project_tree.delete(*self._project_tree.get_children())
@@ -446,6 +567,90 @@ class ManagePresetsDialog(ctk.CTkToplevel):
             self._name_tree.focus(new_name)
 
     # ------------------------------------------------------------------
+    # Analysis Types helpers
+    # ------------------------------------------------------------------
+
+    def _refresh_analysis_list(self, select_value: str = "") -> None:
+        self._analysis_tree.delete(*self._analysis_tree.get_children())
+        for atype in self._analysis_types:
+            self._analysis_tree.insert("", "end", iid=atype, values=(atype,))
+        target = select_value or ""
+        if target and target in self._analysis_tree.get_children():
+            self._analysis_tree.selection_set(target)
+            self._analysis_tree.focus(target)
+
+    def _add_analysis(self) -> None:
+        value = self._ask_value("Add Analysis Type", "Analysis type name:")
+        if value is None:
+            return
+        value = value.strip().upper()
+        if not value:
+            return
+        if value in self._analysis_types:
+            messagebox.showwarning(
+                "Duplicate", f'"{value}" already exists.', parent=self)
+            return
+        self._analysis_types.append(value)
+        self._refresh_analysis_list(select_value=value)
+
+    def _edit_analysis(self) -> None:
+        sel = self._analysis_tree.selection()
+        if not sel:
+            return
+        old = sel[0]
+        value = self._ask_value("Edit Analysis Type", "Analysis type name:", initial=old)
+        if value is None:
+            return
+        value = value.strip().upper()
+        if not value or value == old:
+            return
+        if value in self._analysis_types:
+            messagebox.showwarning(
+                "Duplicate", f'"{value}" already exists.', parent=self)
+            return
+        idx = self._analysis_types.index(old)
+        self._analysis_types[idx] = value
+        self._refresh_analysis_list(select_value=value)
+
+    def _del_analysis(self) -> None:
+        sel = self._analysis_tree.selection()
+        if not sel:
+            return
+        value = sel[0]
+        if not messagebox.askyesno(
+            "Delete Analysis Type", f'Remove "{value}"?', parent=self
+        ):
+            return
+        self._analysis_types.remove(value)
+        self._refresh_analysis_list()
+
+    def _move_analysis_up(self) -> None:
+        sel = self._analysis_tree.selection()
+        if not sel:
+            return
+        value = sel[0]
+        idx = self._analysis_types.index(value)
+        if idx == 0:
+            return
+        self._analysis_types[idx], self._analysis_types[idx - 1] = (
+            self._analysis_types[idx - 1], self._analysis_types[idx]
+        )
+        self._refresh_analysis_list(select_value=value)
+
+    def _move_analysis_down(self) -> None:
+        sel = self._analysis_tree.selection()
+        if not sel:
+            return
+        value = sel[0]
+        idx = self._analysis_types.index(value)
+        if idx == len(self._analysis_types) - 1:
+            return
+        self._analysis_types[idx], self._analysis_types[idx + 1] = (
+            self._analysis_types[idx + 1], self._analysis_types[idx]
+        )
+        self._refresh_analysis_list(select_value=value)
+
+    # ------------------------------------------------------------------
     # Import
     # ------------------------------------------------------------------
 
@@ -509,5 +714,6 @@ class ManagePresetsDialog(ctk.CTkToplevel):
     def _save(self) -> None:
         mgr = get_settings_manager()
         mgr.settings.project_presets = self._presets
+        mgr.set_analysis_types(self._analysis_types)
         mgr.save()
         self.destroy()
